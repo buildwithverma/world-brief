@@ -44,7 +44,7 @@ This document describes the implemented local application. The backend is entire
 8. Headlines are grouped using shared words, similarity, compatible numbers and a 36-hour event window. This is a heuristic, so separate events may occasionally group together or equivalent stories remain separate.
 9. Ranking favors country coverage, freshness, matching outlet count and source/topic diversity. India catalogue priority adds a small ranking bonus of up to four points; it does not override the country preference or establish truth.
 10. Up to the requested count of story groups are returned. Fewer stories are legitimate when the selected sources/time range contain fewer matches; the UI displays the requested and returned totals.
-11. Each story uses available publisher excerpts and original links. Stories with only indexed headlines remain explicitly labeled. Groq receives headlines and excerpts in batches of five and is asked for two to four informative sentences grounded in that material.
+11. Each story uses available publisher excerpts and original links. Stories with only indexed headlines remain explicitly labeled. Groq receives headlines and excerpts in batches of five and is asked for a brief of at most 60 words grounded in that material.
 12. Summaries must cite supplied source IDs. Invalid output, unavailable Groq, exhausted budget or the bounded 20-second summary window leaves the publisher excerpt/headline fallback visible. A 50-story briefing need not contain 50 AI summaries on the free tier.
 13. Results, source links, coverage counts and summaries are cached. The browser shows the answer and refreshes status.
 
@@ -73,6 +73,7 @@ For each story group, publishers are deduplicated by source identity. The app di
 | SQLite table | Contents |
 | --- | --- |
 | `articles` | URLs, titles, excerpts, publisher, timestamps and content hashes. |
+| `article_images` | Publisher-provided image URLs associated with articles. |
 | `media` | Per-country publisher identity, ordering and selection. |
 | `source_catalog` | Imported India metadata, including duplicate category entries. |
 | `country_articles` | Article-to-country/source links, topic and country-priority signal. |
@@ -126,3 +127,13 @@ Run `./start.ps1` in PowerShell from the project root and open http://127.0.0.1:
 Backend checks: `.venv/Scripts/python.exe -m pytest tests -q`. Frontend checks: `node web/node_modules/typescript/bin/tsc --noEmit --project web/tsconfig.json`, then run `node node_modules/vinext/dist/cli.js build` from `web/`.
 
 To change ranking or grouping, edit `backend/engine.py`. To extend publisher excerpts, add configured feeds in `backend/publisher_feeds.py` and test their date, excerpt and URL parsing. To support another ranked country catalogue, extend `backend/catalog.py`. The frontend consumes Python API responses and does not contain news ingestion, AI or cache logic.
+
+## Short-news feed update
+
+The Inshorts-inspired reading surface keeps the original React frontend and Python backend. Cards now show a headline, publisher/time, a brief of at most 60 words, source-coverage badge, bookmark and full-reporting link. Search and filters sit above the single-column feed. Mobile cards stack publisher images above text; desktop cards place them beside it. Missing or failed images collapse to text-only cards.
+
+`backend/shorts.py` enforces the summary word limit without an additional AI request, preferring complete sentences when shortening. Groq is prompted to use fewer words when evidence is thin and to avoid inventing context. Publisher excerpts are also shortened for cards; source excerpts remain accessible in the evidence drawer. Legacy saved stories receive a 60-word frontend display limit while retaining their saved detail.
+
+Publisher RSS image metadata and embedded excerpt images are stored in `article_images` and included in story cache versions. Only HTTPS image URLs with public-looking domain names are accepted. Images load directly from publisher/CDN hosts with no referrer; this does not download or rehost them. No synthetic or unrelated stock images are used. Feed availability determines image coverage.
+
+The GitHub `main` branch and `pre-inshorts-redesign` tag preserve the earlier interface. The short-news work is isolated on `codex/short-news-feed`.

@@ -128,3 +128,23 @@ async def test_source_changes_bypass_collection_cooldown(store,monkeypatch):
     await engine.collect('US',force=True);assert not calls
     with store.db() as db:db.execute('UPDATE media SET selected=0')
     await engine.collect('US',force=True);assert len(calls)==1
+
+@pytest.mark.parametrize('value',[ 'Brief factual report.', 'word '*90, 'A complete first sentence. '+'More detail '*50])
+def test_short_summary_bound(value):
+    from backend.shorts import short_summary
+    result=short_summary(value)
+    assert len(result.split())<=60
+    if len(value.split())<=60:assert result==value
+
+def test_publisher_image_validation():
+    from backend.shorts import publisher_image,safe_image_url
+    assert publisher_image({'media_thumbnail':[{'url':'https://images.example.com/news.jpg'}]})=='https://images.example.com/news.jpg'
+    assert publisher_image({'summary':'<p>Reporting</p><img src="https://cdn.example.com/article.jpg">'})=='https://cdn.example.com/article.jpg'
+    for url in ('javascript:alert(1)','http://example.com/a.jpg','https://127.0.0.1/a','https://localhost/a','https://user:password@example.com/a','https://example.internal/a','https://example.com:8000/a'):
+        assert not safe_image_url(url)
+
+def test_image_change_invalidates_cache(store):
+    article=seed(store,1)[0];revision=store.meta('revision')
+    article['image_url']='https://images.example.com/photo.jpg';store.upsert_articles([article])
+    assert store.meta('revision')!=revision
+    assert store.rows('SELECT * FROM article_images')[0]['url']==article['image_url']

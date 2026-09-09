@@ -9,6 +9,7 @@ from .config import CACHE_SECONDS,REFRESH_SECONDS,DEFAULT_ARTICLE_COUNT
 from .groq import Groq,credentials
 from .media import NAMES,country_name,collect_country
 from .store import digest
+from .shorts import short_summary
 
 TOPICS=['All','World','Technology','Business','Science','Climate']
 STOP=set('the a an is are was were of to in on for with and or as at by from after over this that it its news latest top world today stories give me about what happened biggest only please show tell headlines brief briefing update updates new s happening going around across recent more story ones those instead changed my country local international global two minute minutes five ten'.split())
@@ -74,7 +75,7 @@ class Engine:
     def __init__(self,store,vector):
         self.store=store;self.vector=vector;self.groq=Groq(store);self.fetch_locks={};self.refreshing=set()
     def config_signature(self):
-        key,model=credentials();return 'country-v2-excerpts:'+model+':'+digest(key)[:12]
+        key,model=credentials();return 'country-v3-shorts:'+model+':'+digest(key)[:12]
     async def collect(self,country,force=False,query=''):
         lock=self.fetch_locks.setdefault(country,asyncio.Lock())
         async with lock:
@@ -128,7 +129,9 @@ class Engine:
                 rows=self.store.rows('SELECT * FROM query_cache WHERE id=? AND expires>? AND revision=?',(ident,time.time(),snapshot))
                 if rows and json.loads(rows[0]['scope'])==scope:return self.decorate(json.loads(rows[0]['data']),'semantic')
         articles=self.store.rows('SELECT a.*,c.domestic,c.topic AS country_topic,m.id AS source_id,m.major,m.domain FROM articles a JOIN country_articles c ON c.article_id=a.id JOIN media m ON m.id=c.source_id AND m.country=c.country WHERE c.country=? AND m.selected=1 AND a.published>=? AND a.published<=? ORDER BY a.published DESC LIMIT 1400',(country,start,end))
-        for a in articles:a['topic']=a['country_topic']
+        images={r['article_id']:r['url'] for r in self.store.rows('SELECT i.* FROM article_images i JOIN country_articles c ON c.article_id=i.article_id WHERE c.country=?',(country,))}
+        for a in articles:
+            a['topic']=a['country_topic'];a['image_url']=images.get(a['id'],'')
         if scope['topic']!='All':articles=[a for a in articles if a['topic']==scope['topic']]
         if scope['terms']:articles=[a for a in articles if any(t in (a['title']+' '+a['excerpt']).lower() for t in scope['terms'])]
         groups=cluster(articles)
@@ -144,12 +147,12 @@ class Engine:
         stories=[];missing=[]
         for group in selected:
             group=sorted(group,key=lambda a:bool(a['excerpt']),reverse=True)
-            lead=group[0];ident=digest(country+'|'+source_sig+'|'+lead['id']);version=digest('|'.join(sorted(a['content_hash']+a['source_id'] for a in group))+config)
+            lead=group[0];ident=digest(country+'|'+source_sig+'|'+lead['id']);version=digest('|'.join(sorted(a['content_hash']+a['source_id']+a.get('image_url','') for a in group))+config)
             cached=self.store.rows('SELECT data FROM story_cache WHERE id=? AND version=? AND expires>?',(ident,version,time.time()))
             if cached:story=json.loads(cached[0]['data'])
             else:
                 sources=[{'id':a['id'],'url':a['url'],'publisher':a['publisher'],'domain':a['domain'],'major':bool(a['major']),'title':a['title'],'excerpt':a['excerpt'],'link_kind':'news_index' if 'news.google.com/' in a['url'] else 'original','published_at':a['published']} for a in group]
-                story={'id':ident,'title':lead['title'],'summary':lead['excerpt'] or ('Reported by '+', '.join(dict.fromkeys(a['publisher'] for a in group))+'. Publisher excerpt unavailable; open the reporting for details.'),'summary_kind':'publisher_excerpt' if lead['excerpt'] else 'headline','topic':lead['topic'],'country':country,'country_name':country_name(country),'local_priority':bool(max(a['domestic'] for a in group)),'published_at':max(a['published'] for a in group),'sources':sources,'coverage_count':len(set(a['source_id'] for a in group)),'verification':coverage(group),'saved':False}
+                story={'id':ident,'title':lead['title'],'image_url':next((a['image_url'] for a in group if a.get('image_url')),None),'summary':short_summary(lead['excerpt']) or ('Reported by '+', '.join(dict.fromkeys(a['publisher'] for a in group))+'. Publisher excerpt unavailable; open the reporting for details.'),'summary_kind':'publisher_excerpt' if lead['excerpt'] else 'headline','topic':lead['topic'],'country':country,'country_name':country_name(country),'local_priority':bool(max(a['domestic'] for a in group)),'published_at':max(a['published'] for a in group),'sources':sources,'coverage_count':len(set(a['source_id'] for a in group)),'verification':coverage(group),'saved':False}
                 missing.append((story,version))
             stories.append(story)
         if missing and credentials()[0]:
@@ -162,7 +165,7 @@ class Engine:
                 remaining = deadline-time.monotonic()
                 if remaining <= 0:break
                 try:
-                    result=await asyncio.wait_for(self.groq.json('Summarize each story in two to four informative sentences strictly from the supplied headlines and publisher excerpts. Include what happened and available details. Do not invent context, causes, numbers or conclusions. Preserve attribution and uncertainty. Return {"stories":[{"id":string,"summary":string,"source_ids":[string]}]}. Every summary needs a supplied source ID from that story.',payload,1600),timeout=remaining)
+                    result=await asyncio.wait_for(self.groq.json('Write a clear news brief of at most 60 words per story, strictly from the supplied headlines and publisher excerpts. Explain what happened and key details only when present. Use fewer words when evidence is thin. Do not repeat the headline or pad with commentary about the article. Never say the article provides context or implications unless those facts are explicitly supplied. Do not invent context, causes, numbers or conclusions. Preserve attribution and uncertainty. Return {"stories":[{"id":string,"summary":string,"source_ids":[string]}]}. Every summary needs a supplied source ID from that story.',payload,1600),timeout=remaining)
                 except TimeoutError:break
                 if not isinstance(result,dict) or not isinstance(result.get('stories'),list):break
                 by_id={s['id']:s for s,v in batch}
@@ -171,7 +174,7 @@ class Engine:
                     if not isinstance(item,dict) or not isinstance(item.get('id'),str):continue
                     s=by_id.get(item['id']);refs=item.get('source_ids')
                     if s and isinstance(item.get('summary'),str) and item['summary'].strip() and isinstance(refs,list) and refs and all(isinstance(i,str) and i in supplied[item['id']] for i in refs):
-                        s.update(summary=item['summary'][:1800],summary_kind='groq_summary')
+                        s.update(summary=short_summary(item['summary']),summary_kind='groq_summary')
         for story,version in missing:
             with self.store.db() as db:db.execute('INSERT OR REPLACE INTO story_cache VALUES(?,?,?,?)',(story['id'],version,json.dumps(story),time.time()+CACHE_SECONDS))
         now=time.time();notice=None

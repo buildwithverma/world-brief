@@ -27,6 +27,7 @@ class Store:
                 CREATE TABLE IF NOT EXISTS country_articles(country TEXT,article_id TEXT,source_id TEXT,domestic INTEGER,topic TEXT,PRIMARY KEY(country,article_id));
                 CREATE INDEX IF NOT EXISTS idx_country_source ON country_articles(country,source_id);
                 CREATE TABLE IF NOT EXISTS source_catalog(country TEXT,id TEXT,metadata TEXT,PRIMARY KEY(country,id));
+                CREATE TABLE IF NOT EXISTS article_images(article_id TEXT PRIMARY KEY,url TEXT);
             ''')
             for f in FEEDS:
                 db.execute('INSERT INTO feeds(id,publisher,topic,region,url,status) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET publisher=excluded.publisher,topic=excluded.topic,region=excluded.region,url=excluded.url', (*f, 'pending'))
@@ -54,6 +55,11 @@ class Store:
         changed = 0
         with self.db() as db:
             for a in articles:
+                if a.get('image_url'):
+                    image=db.execute('SELECT url FROM article_images WHERE article_id=?',(a['id'],)).fetchone()
+                    if not image or image[0]!=a['image_url']:
+                        db.execute('INSERT OR REPLACE INTO article_images VALUES(?,?)',(a['id'],a['image_url']))
+                        changed+=1
                 old = db.execute('SELECT content_hash FROM articles WHERE id=?', (a['id'],)).fetchone()
                 if not old or old[0] != a['content_hash']:
                     db.execute('INSERT OR REPLACE INTO articles VALUES(?,?,?,?,?,?,?,?,?,?)', tuple(a[k] for k in ['id','url','publisher','title','excerpt','topic','region','published','fetched','content_hash']))

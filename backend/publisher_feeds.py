@@ -11,6 +11,7 @@ import httpx
 from .config import FEEDS
 from .feeds import plain, canonical
 from .store import digest
+from .shorts import publisher_image
 
 INDIA_FEEDS = [
     ('thehindu.com', 'World', 'https://www.thehindu.com/news/national/feeder/default.rss'),
@@ -44,7 +45,7 @@ def parse_publisher(content, outlet, country, topic, domestic):
         excerpt = plain(item.get('summary', ''))[:1600]
         articles.append(dict(id=digest(url), url=url, publisher=outlet['name'], title=title, excerpt=excerpt,
             topic=topic, region=country, published=published, fetched=time.time(), content_hash=digest(title + excerpt),
-            source_id=outlet['id'], country=country, domestic=int(domestic), major=outlet['major'], domain=outlet['domain']))
+            source_id=outlet['id'], country=country, domestic=int(domestic), major=outlet['major'], domain=outlet['domain'],image_url=publisher_image(item)))
     return articles
 
 async def collect_publishers(store, country):
