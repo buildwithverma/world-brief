@@ -1,0 +1,1010 @@
+{
+  "country": "India",
+  "as_of": "2026-09-09",
+  "ranking_method": {
+    "description": "Heuristic prioritization for a news aggregation / AI news application. Scores are directional, not objective measures of truth or political neutrality.",
+    "score_range": "0-100",
+    "factors": {
+      "reach_and_relevance": 0.25,
+      "original_reporting": 0.25,
+      "update_frequency": 0.15,
+      "editorial_depth": 0.15,
+      "regional_or_specialist_value": 0.1,
+      "fact_check_or_verification_value": 0.1
+    },
+    "priority_tiers": {
+      "tier_1": "85-100: ingest by default",
+      "tier_2": "75-84: high-priority secondary sources",
+      "tier_3": "65-74: useful for breadth, region or specialist coverage",
+      "tier_4": "below 65: optional / lower-priority enrichment"
+    },
+    "recommended_application_policy": {
+      "core_feed": "priority_score >= 85",
+      "broad_feed": "priority_score >= 75",
+      "regional_expansion": "priority_score >= 65 with region/language filters",
+      "fact_check_pass": "Always include fact_check sources with priority_score >= 80 for verification workflows"
+    }
+  },
+  "categories": {
+    "major_national": [
+      {
+        "name": "Press Trust of India",
+        "website": "https://www.ptinews.com",
+        "primary_language": "English/Hindi",
+        "priority_score": 97,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Indian Express",
+        "website": "https://indianexpress.com",
+        "primary_language": "English",
+        "priority_score": 96,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Hindu",
+        "website": "https://www.thehindu.com",
+        "primary_language": "English",
+        "priority_score": 95,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Economic Times",
+        "website": "https://economictimes.indiatimes.com",
+        "primary_language": "English",
+        "priority_score": 94,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "ANI",
+        "website": "https://www.aninews.in",
+        "primary_language": "English/Hindi",
+        "priority_score": 93,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Business Standard",
+        "website": "https://www.business-standard.com",
+        "primary_language": "English/Hindi",
+        "priority_score": 93,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Moneycontrol",
+        "website": "https://www.moneycontrol.com",
+        "primary_language": "English/Hindi",
+        "priority_score": 93,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Mint",
+        "website": "https://www.livemint.com",
+        "primary_language": "English",
+        "priority_score": 92,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "CNBC-TV18",
+        "website": "https://www.cnbctv18.com",
+        "primary_language": "English",
+        "priority_score": 91,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Dainik Bhaskar",
+        "website": "https://www.bhaskar.com",
+        "primary_language": "Hindi",
+        "priority_score": 91,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "NDTV",
+        "website": "https://www.ndtv.com",
+        "primary_language": "English/Hindi",
+        "priority_score": 90,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Times of India",
+        "website": "https://timesofindia.indiatimes.com",
+        "primary_language": "English",
+        "priority_score": 90,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Aaj Tak",
+        "website": "https://www.aajtak.in",
+        "primary_language": "Hindi",
+        "priority_score": 89,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Dainik Jagran",
+        "website": "https://www.jagran.com",
+        "primary_language": "Hindi",
+        "priority_score": 89,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Hindu BusinessLine",
+        "website": "https://www.thehindubusinessline.com",
+        "primary_language": "English",
+        "priority_score": 89,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Hindustan Times",
+        "website": "https://www.hindustantimes.com",
+        "primary_language": "English",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "India Today",
+        "website": "https://www.indiatoday.in",
+        "primary_language": "English",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "News18",
+        "website": "https://www.news18.com",
+        "primary_language": "English/Indian languages",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Amar Ujala",
+        "website": "https://www.amarujala.com",
+        "primary_language": "Hindi",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Financial Express",
+        "website": "https://www.financialexpress.com",
+        "primary_language": "English",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "ABP News",
+        "website": "https://www.abplive.com",
+        "primary_language": "Hindi/Indian languages",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Business Today",
+        "website": "https://www.businesstoday.in",
+        "primary_language": "English",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "CNN-News18",
+        "website": "https://www.news18.com",
+        "primary_language": "English",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Deccan Herald",
+        "website": "https://www.deccanherald.com",
+        "primary_language": "English",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Navbharat Times",
+        "website": "https://navbharattimes.indiatimes.com",
+        "primary_language": "Hindi",
+        "priority_score": 83,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "The Telegraph India",
+        "website": "https://www.telegraphindia.com",
+        "primary_language": "English",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Times Now",
+        "website": "https://www.timesnownews.com",
+        "primary_language": "English",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "WION",
+        "website": "https://www.wionews.com",
+        "primary_language": "English",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Zee News",
+        "website": "https://zeenews.india.com",
+        "primary_language": "Hindi/English",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "DD News",
+        "website": "https://ddnews.gov.in",
+        "primary_language": "English/Hindi",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Republic World",
+        "website": "https://www.republicworld.com",
+        "primary_language": "English/Hindi",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "The Tribune",
+        "website": "https://www.tribuneindia.com",
+        "primary_language": "English",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "News On AIR",
+        "website": "https://www.newsonair.gov.in",
+        "primary_language": "Multilingual",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Outlook India",
+        "website": "https://www.outlookindia.com",
+        "primary_language": "English",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Times Now Navbharat",
+        "website": "https://www.timesnowhindi.com",
+        "primary_language": "Hindi",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "The Week",
+        "website": "https://www.theweek.in",
+        "primary_language": "English",
+        "priority_score": 77,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "The Statesman",
+        "website": "https://www.thestatesman.com",
+        "primary_language": "English",
+        "priority_score": 72,
+        "priority_tier": "tier_3"
+      }
+    ],
+    "regional": [
+      {
+        "name": "Eenadu",
+        "website": "https://www.eenadu.net",
+        "language": "Telugu",
+        "region": "Andhra Pradesh/Telangana",
+        "priority_score": 91,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Malayala Manorama",
+        "website": "https://www.manoramaonline.com",
+        "language": "Malayalam",
+        "region": "Kerala",
+        "priority_score": 91,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Anandabazar Patrika",
+        "website": "https://www.anandabazar.com",
+        "language": "Bengali",
+        "region": "West Bengal",
+        "priority_score": 90,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Mathrubhumi",
+        "website": "https://www.mathrubhumi.com",
+        "language": "Malayalam",
+        "region": "Kerala",
+        "priority_score": 89,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Daily Thanthi",
+        "website": "https://www.dailythanthi.com",
+        "language": "Tamil",
+        "region": "Tamil Nadu",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Hindustan",
+        "website": "https://www.livehindustan.com",
+        "language": "Hindi",
+        "region": "Uttar Pradesh/Bihar/Jharkhand/Uttarakhand",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Lokmat",
+        "website": "https://www.lokmat.com",
+        "language": "Marathi",
+        "region": "Maharashtra",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Prajavani",
+        "website": "https://www.prajavani.net",
+        "language": "Kannada",
+        "region": "Karnataka",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Rajasthan Patrika",
+        "website": "https://www.patrika.com",
+        "language": "Hindi",
+        "region": "Rajasthan/Madhya Pradesh",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "EastMojo",
+        "website": "https://www.eastmojo.com",
+        "language": "English",
+        "region": "Northeast India",
+        "priority_score": 87,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Gujarat Samachar",
+        "website": "https://www.gujaratsamachar.com",
+        "language": "Gujarati",
+        "region": "Gujarat",
+        "priority_score": 87,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Loksatta",
+        "website": "https://www.loksatta.com",
+        "language": "Marathi",
+        "region": "Maharashtra",
+        "priority_score": 87,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Odisha TV",
+        "website": "https://odishatv.in",
+        "language": "Odia/English",
+        "region": "Odisha",
+        "priority_score": 87,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Asianet News",
+        "website": "https://www.asianetnews.com",
+        "language": "Malayalam",
+        "region": "Kerala",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Dinamalar",
+        "website": "https://www.dinamalar.com",
+        "language": "Tamil",
+        "region": "Tamil Nadu",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Divya Bhaskar",
+        "website": "https://www.divyabhaskar.co.in",
+        "language": "Gujarati",
+        "region": "Gujarat",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Prabhat Khabar",
+        "website": "https://www.prabhatkhabar.com",
+        "language": "Hindi",
+        "region": "Jharkhand/Bihar",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Sakshi",
+        "website": "https://www.sakshi.com",
+        "language": "Telugu",
+        "region": "Andhra Pradesh/Telangana",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Sambad",
+        "website": "https://sambad.in",
+        "language": "Odia",
+        "region": "Odisha",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Assam Tribune",
+        "website": "https://assamtribune.com",
+        "language": "English",
+        "region": "Assam/Northeast",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Greater Kashmir",
+        "website": "https://www.greaterkashmir.com",
+        "language": "English",
+        "region": "Jammu and Kashmir",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Puthiya Thalaimurai",
+        "website": "https://www.puthiyathalaimurai.com",
+        "language": "Tamil",
+        "region": "Tamil Nadu",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "TV9 Telugu",
+        "website": "https://www.tv9telugu.com",
+        "language": "Telugu",
+        "region": "Andhra Pradesh/Telangana",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Vijaya Karnataka",
+        "website": "https://vijaykarnataka.com",
+        "language": "Kannada",
+        "region": "Karnataka",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Andhra Jyothy",
+        "website": "https://www.andhrajyothy.com",
+        "language": "Telugu",
+        "region": "Andhra Pradesh/Telangana",
+        "priority_score": 83,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Maharashtra Times",
+        "website": "https://maharashtratimes.com",
+        "language": "Marathi",
+        "region": "Maharashtra",
+        "priority_score": 83,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Sakal",
+        "website": "https://www.esakal.com",
+        "language": "Marathi",
+        "region": "Maharashtra",
+        "priority_score": 83,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Ajit",
+        "website": "https://www.ajitjalandhar.com",
+        "language": "Punjabi",
+        "region": "Punjab",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Asomiya Pratidin",
+        "website": "https://www.asomiyapratidin.in",
+        "language": "Assamese",
+        "region": "Assam",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Naidunia",
+        "website": "https://www.naidunia.com",
+        "language": "Hindi",
+        "region": "Madhya Pradesh/Chhattisgarh",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Punjab Kesari",
+        "website": "https://www.punjabkesari.in",
+        "language": "Hindi/Punjabi",
+        "region": "Punjab/North India",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Vikatan",
+        "website": "https://www.vikatan.com",
+        "language": "Tamil",
+        "region": "Tamil Nadu",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Dharitri",
+        "website": "https://www.dharitri.com",
+        "language": "Odia",
+        "region": "Odisha",
+        "priority_score": 81,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Sandesh",
+        "website": "https://sandesh.com",
+        "language": "Gujarati",
+        "region": "Gujarat",
+        "priority_score": 81,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Daily Excelsior",
+        "website": "https://www.dailyexcelsior.com",
+        "language": "English",
+        "region": "Jammu and Kashmir",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Dinamani",
+        "website": "https://www.dinamani.com",
+        "language": "Tamil",
+        "region": "Tamil Nadu",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Ei Samay",
+        "website": "https://eisamay.com",
+        "language": "Bengali",
+        "region": "West Bengal",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Madhyamam",
+        "website": "https://www.madhyamam.com",
+        "language": "Malayalam",
+        "region": "Kerala",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "News18 Tamil Nadu",
+        "website": "https://tamil.news18.com",
+        "language": "Tamil",
+        "region": "Tamil Nadu",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Prameya",
+        "website": "https://www.prameya.com",
+        "language": "Odia/English",
+        "region": "Odisha",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Pratidin Time",
+        "website": "https://www.pratidintime.com",
+        "language": "English/Assamese",
+        "region": "Assam/Northeast",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Sangbad Pratidin",
+        "website": "https://www.sangbadpratidin.in",
+        "language": "Bengali",
+        "region": "West Bengal",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Udayavani",
+        "website": "https://www.udayavani.com",
+        "language": "Kannada",
+        "region": "Karnataka",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Kannada Prabha",
+        "website": "https://www.kannadaprabha.com",
+        "language": "Kannada",
+        "region": "Karnataka",
+        "priority_score": 79,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "24 News Malayalam",
+        "website": "https://www.twentyfournews.com",
+        "language": "Malayalam",
+        "region": "Kerala",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Jagbani",
+        "website": "https://jagbani.punjabkesari.in",
+        "language": "Punjabi",
+        "region": "Punjab",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Public TV",
+        "website": "https://publictv.in",
+        "language": "Kannada",
+        "region": "Karnataka",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "The Shillong Times",
+        "website": "https://theshillongtimes.com",
+        "language": "English",
+        "region": "Meghalaya/Northeast",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Imphal Free Press",
+        "website": "https://www.ifp.co.in",
+        "language": "English",
+        "region": "Manipur",
+        "priority_score": 76,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Kashmir Life",
+        "website": "https://kashmirlife.net",
+        "language": "English",
+        "region": "Jammu and Kashmir",
+        "priority_score": 75,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Namasthe Telangana",
+        "website": "https://www.ntnews.com",
+        "language": "Telugu",
+        "region": "Telangana",
+        "priority_score": 75,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Aajkaal",
+        "website": "https://www.aajkaal.in",
+        "language": "Bengali",
+        "region": "West Bengal",
+        "priority_score": 70,
+        "priority_tier": "tier_3"
+      }
+    ],
+    "fact_check": [
+      {
+        "name": "Alt News",
+        "website": "https://www.altnews.in",
+        "type": "Independent fact checker",
+        "priority_score": 95,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "BOOM",
+        "website": "https://www.boomlive.in",
+        "type": "Independent fact checker",
+        "priority_score": 94,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Factly",
+        "website": "https://factly.in",
+        "type": "Fact checking and public-data journalism",
+        "priority_score": 92,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Newschecker",
+        "website": "https://www.newschecker.in",
+        "type": "Independent multilingual fact checker",
+        "priority_score": 89,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Fact Crescendo",
+        "website": "https://www.factcrescendo.com",
+        "type": "Multilingual fact checker",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "THIP Media",
+        "website": "https://www.thip.media",
+        "type": "Health-focused fact checker",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Quint WebQoof",
+        "website": "https://www.thequint.com/news/webqoof",
+        "type": "Newsroom fact-checking unit",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "NewsMeter Fact Check",
+        "website": "https://newsmeter.in/fact-check",
+        "type": "Fact checking and regional journalism",
+        "priority_score": 87,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Vishvas News",
+        "website": "https://www.vishvasnews.com",
+        "type": "Multilingual fact checker",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "India Today Fact Check",
+        "website": "https://www.indiatoday.in/fact-check",
+        "type": "Newsroom fact-checking unit",
+        "priority_score": 85,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "First Check",
+        "website": "https://firstcheck.in",
+        "type": "Health and medical misinformation fact checker",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "YouTurn",
+        "website": "https://youturn.in",
+        "type": "Tamil/English fact checker",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "NewsMobile Fact Checker",
+        "website": "https://www.newsmobile.in",
+        "type": "Fact checker",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "D-FRAC",
+        "website": "https://dfrac.org",
+        "type": "Digital forensics and misinformation research",
+        "priority_score": 79,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "DigitEye India",
+        "website": "https://digiteye.in",
+        "type": "Fact checker",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      }
+    ],
+    "independent_youtube_and_digital_first": [
+      {
+        "name": "PARI - People's Archive of Rural India",
+        "website": "https://ruralindiaonline.org",
+        "focus": "Rural India, communities, livelihoods and documentary journalism",
+        "format": "Independent digital publication",
+        "priority_score": 93,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Reporters' Collective",
+        "website": "https://www.reporters-collective.in",
+        "focus": "Investigative journalism",
+        "format": "Independent investigative newsroom",
+        "priority_score": 92,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "ThePrint",
+        "website": "https://theprint.in",
+        "focus": "Politics, defence, policy, geopolitics and interviews",
+        "format": "Digital-first + major YouTube presence",
+        "priority_score": 92,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Newslaundry",
+        "website": "https://www.newslaundry.com",
+        "focus": "Media criticism, politics, ground reporting",
+        "format": "Website + YouTube",
+        "priority_score": 91,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Wire",
+        "website": "https://thewire.in",
+        "focus": "Politics, policy, investigations, interviews",
+        "format": "Website + YouTube",
+        "priority_score": 90,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Gaon Connection",
+        "website": "https://www.gaonconnection.com",
+        "focus": "Rural India, agriculture and ground reporting",
+        "format": "Digital + YouTube",
+        "priority_score": 89,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Ravish Kumar Official",
+        "website": "https://www.youtube.com/@ravishkumar.official",
+        "focus": "Politics, media analysis and current affairs",
+        "format": "Independent YouTube channel",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Scroll.in",
+        "website": "https://scroll.in",
+        "focus": "National affairs, politics, culture, explainers",
+        "format": "Website + video",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The News Minute",
+        "website": "https://www.thenewsminute.com",
+        "focus": "South India, politics, society, gender",
+        "format": "Website + YouTube",
+        "priority_score": 88,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Article 14",
+        "website": "https://article-14.com",
+        "focus": "Law, justice, civil liberties and investigations",
+        "format": "Independent digital journalism",
+        "priority_score": 87,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "EastMojo",
+        "website": "https://www.eastmojo.com",
+        "focus": "Northeast India",
+        "format": "Digital-first + YouTube",
+        "priority_score": 87,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The Quint",
+        "website": "https://www.thequint.com",
+        "focus": "Ground reporting, investigations, explainers, fact checking",
+        "format": "Digital-first + YouTube",
+        "priority_score": 87,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Dhruv Rathee",
+        "website": "https://dhruvrathee.com",
+        "focus": "Current affairs, politics, social issues and explainers",
+        "format": "Independent creator / YouTube-first",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "The India Forum",
+        "website": "https://www.theindiaforum.in",
+        "focus": "Public policy, economics and long-form analysis",
+        "format": "Independent digital publication",
+        "priority_score": 86,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Soch by Mohak Mangal",
+        "website": "https://www.youtube.com/@SochByMohakMangal",
+        "focus": "Policy, economics, society and explanatory journalism",
+        "format": "YouTube-first",
+        "priority_score": 85,
+        "priority_tier": "tier_1"
+      },
+      {
+        "name": "Ajit Anjum",
+        "website": "https://www.youtube.com/@AjitAnjum",
+        "focus": "Politics, elections and ground reporting",
+        "format": "Independent YouTube channel",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Mojo Story",
+        "website": "https://www.mojostory.com",
+        "focus": "Ground reporting, interviews, politics and society",
+        "format": "YouTube-first + website",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Think School",
+        "website": "https://thethinkschool.com",
+        "focus": "Business, economics, geopolitics and case-study explainers",
+        "format": "YouTube-first",
+        "priority_score": 84,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Satya Hindi",
+        "website": "https://www.satyahindi.com",
+        "focus": "Hindi politics, current affairs and commentary",
+        "format": "YouTube + website",
+        "priority_score": 82,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Punya Prasun Bajpai",
+        "website": "https://www.youtube.com/@PunyaPrasunBajpai",
+        "focus": "Politics and current-affairs analysis",
+        "format": "Independent YouTube channel",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "The Deshbhakt",
+        "website": "https://www.youtube.com/@TheDeshBhakt",
+        "focus": "Political satire, current-affairs commentary and explainers",
+        "format": "YouTube-first",
+        "priority_score": 80,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "Abhisar Sharma",
+        "website": "https://www.youtube.com/@AbhisarSharma",
+        "focus": "Politics and media commentary",
+        "format": "Independent YouTube channel",
+        "priority_score": 79,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "NewsClick",
+        "website": "https://www.newsclick.in",
+        "focus": "Politics, labour, economics and international affairs",
+        "format": "Digital + YouTube",
+        "priority_score": 78,
+        "priority_tier": "tier_2"
+      },
+      {
+        "name": "HW News",
+        "website": "https://hwnews.in",
+        "focus": "Politics, current affairs and commentary",
+        "format": "Digital + YouTube",
+        "priority_score": 76,
+        "priority_tier": "tier_2"
+      }
+    ]
+  }
+}
