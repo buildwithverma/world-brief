@@ -9,7 +9,8 @@ from .config import CACHE_SECONDS,REFRESH_SECONDS,DEFAULT_ARTICLE_COUNT
 from .groq import Groq,credentials
 from .media import NAMES,country_name,collect_country
 from .store import digest
-from .shorts import short_summary
+from .shorts import short_summary,summary_is_usable
+from .summary_queue import SummaryQueue
 
 TOPICS=['All','World','Technology','Business','Science','Climate']
 STOP=set('the a an is are was were of to in on for with and or as at by from after over this that it its news latest top world today stories give me about what happened biggest only please show tell headlines brief briefing update updates new s happening going around across recent more story ones those instead changed my country local international global two minute minutes five ten'.split())
@@ -73,10 +74,10 @@ def coverage(group):
 
 class Engine:
     def __init__(self,store,vector):
-        self.store=store;self.vector=vector;self.groq=Groq(store);self.fetch_locks={};self.refreshing=set()
+        self.store=store;self.vector=vector;self.groq=Groq(store);self.summaries=SummaryQueue(store,self.groq);self.fetch_locks={};self.refreshing=set()
     def config_signature(self):
-        key,model=credentials();return 'country-v3-shorts:'+model+':'+digest(key)[:12]
-    async def collect(self,country,force=False,query=''):
+        key,model=credentials();return 'country-v6-topic-retries:'+model+':'+digest(key)[:12]
+    async def collect(self,country,force=False,query='',topic='All'):
         lock=self.fetch_locks.setdefault(country,asyncio.Lock())
         async with lock:
             last=float(self.store.meta('fetch_attempt:'+country,'0'))
@@ -84,7 +85,7 @@ class Engine:
             if not query and self.store.meta('collected_sources:'+country)==source_sig and time.time()-last<(10 if force else REFRESH_SECONDS):return
             self.refreshing.add(country)
             try:
-                result=await collect_country(self.store,country,query)
+                result=await collect_country(self.store,country,query,topic)
                 self.store.set_meta('collected_sources:'+country,source_sig)
                 return result
             finally:self.refreshing.discard(country)
@@ -116,9 +117,9 @@ class Engine:
                 if isinstance(intent.get('terms'),list):scope['terms']=[str(t).lower()[:60] for t in intent['terms'][:8]]
         if scope['terms']:
             # Search public news only on a cache miss, scoped to the chosen country.
-            search_key='search:'+digest(country+' '.join(scope['terms']))
+            search_key='search:'+digest(country+scope['topic']+' '.join(scope['terms']))
             if time.time()-float(self.store.meta(search_key,'0'))>CACHE_SECONDS:
-                await self.collect(country,query=' '.join(scope['terms']))
+                await self.collect(country,query=' '.join(scope['terms']),topic=scope['topic'])
                 self.store.set_meta(search_key,time.time())
         start,end=resolve_window(scope);source_sig,ids=self.selected_signature(country)
         scope.update(sources=source_sig,config=config)
@@ -152,7 +153,7 @@ class Engine:
             if cached:story=json.loads(cached[0]['data'])
             else:
                 sources=[{'id':a['id'],'url':a['url'],'publisher':a['publisher'],'domain':a['domain'],'major':bool(a['major']),'title':a['title'],'excerpt':a['excerpt'],'link_kind':'news_index' if 'news.google.com/' in a['url'] else 'original','published_at':a['published']} for a in group]
-                story={'id':ident,'title':lead['title'],'image_url':next((a['image_url'] for a in group if a.get('image_url')),None),'summary':short_summary(lead['excerpt']) or ('Reported by '+', '.join(dict.fromkeys(a['publisher'] for a in group))+'. Publisher excerpt unavailable; open the reporting for details.'),'summary_kind':'publisher_excerpt' if lead['excerpt'] else 'headline','topic':lead['topic'],'country':country,'country_name':country_name(country),'local_priority':bool(max(a['domestic'] for a in group)),'published_at':max(a['published'] for a in group),'sources':sources,'coverage_count':len(set(a['source_id'] for a in group)),'verification':coverage(group),'saved':False}
+                story={'id':ident,'title':lead['title'],'image_url':next((a['image_url'] for a in group if a.get('image_url')),None),'image_urls':list(dict.fromkeys(a['image_url'] for a in group if a.get('image_url'))),'summary':short_summary(lead['excerpt']) or ('Reported by '+', '.join(dict.fromkeys(a['publisher'] for a in group))+'. Publisher excerpt unavailable; open the reporting for details.'),'summary_kind':'publisher_excerpt' if lead['excerpt'] else 'headline','topic':lead['topic'],'country':country,'country_name':country_name(country),'local_priority':bool(max(a['domestic'] for a in group)),'published_at':max(a['published'] for a in group),'sources':sources,'coverage_count':len(set(a['source_id'] for a in group)),'verification':coverage(group),'saved':False}
                 missing.append((story,version))
             stories.append(story)
         if missing and credentials()[0]:
@@ -165,7 +166,7 @@ class Engine:
                 remaining = deadline-time.monotonic()
                 if remaining <= 0:break
                 try:
-                    result=await asyncio.wait_for(self.groq.json('Write a clear news brief of at most 60 words per story, strictly from the supplied headlines and publisher excerpts. Explain what happened and key details only when present. Use fewer words when evidence is thin. Do not repeat the headline or pad with commentary about the article. Never say the article provides context or implications unless those facts are explicitly supplied. Do not invent context, causes, numbers or conclusions. Preserve attribution and uncertainty. Return {"stories":[{"id":string,"summary":string,"source_ids":[string]}]}. Every summary needs a supplied source ID from that story.',payload,1600),timeout=remaining)
+                    result=await asyncio.wait_for(self.groq.json('Write a clear news brief of 40–56 words per story, strictly from the supplied headlines and publisher excerpts. Explain what happened and key details only when present. Include who, what, where and when only when supplied. Use fewer than 40 words only when the evidence cannot support the target without repetition or invention. Do not repeat the headline or pad with commentary about the article. Never say the article provides context or implications unless those facts are explicitly supplied. Do not invent context, causes, numbers or conclusions. Preserve attribution and uncertainty. Return {"stories":[{"id":string,"summary":string,"source_ids":[string]}]}. Every summary needs a supplied source ID from that story.',payload,1600),timeout=remaining)
                 except TimeoutError:break
                 if not isinstance(result,dict) or not isinstance(result.get('stories'),list):break
                 by_id={s['id']:s for s,v in batch}
@@ -173,10 +174,10 @@ class Engine:
                 for item in result['stories']:
                     if not isinstance(item,dict) or not isinstance(item.get('id'),str):continue
                     s=by_id.get(item['id']);refs=item.get('source_ids')
-                    if s and isinstance(item.get('summary'),str) and item['summary'].strip() and isinstance(refs,list) and refs and all(isinstance(i,str) and i in supplied[item['id']] for i in refs):
-                        s.update(summary=short_summary(item['summary']),summary_kind='groq_summary')
+                    if s and isinstance(item.get('summary'),str) and summary_is_usable(short_summary(item['summary']),s['sources'][:3]) and isinstance(refs,list) and refs and all(isinstance(i,str) and i in supplied[item['id']] for i in refs):
+                        s.update(summary=short_summary(item['summary']),summary_kind='groq_summary',summary_limited=len(short_summary(item['summary']).split())<40)
         for story,version in missing:
-            with self.store.db() as db:db.execute('INSERT OR REPLACE INTO story_cache VALUES(?,?,?,?)',(story['id'],version,json.dumps(story),time.time()+CACHE_SECONDS))
+            with self.store.db() as db:db.execute("INSERT INTO story_cache VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data,expires=excluded.expires WHERE story_cache.version!=excluded.version OR json_extract(story_cache.data,'$.summary_kind')!='groq_summary' OR json_extract(excluded.data,'$.summary_kind')='groq_summary'",(story['id'],version,json.dumps(story),time.time()+CACHE_SECONDS))
         now=time.time();notice=None
         if not credentials()[0]:notice='Add your Groq key in Settings for AI summaries. You can still search and read source headlines.'
         elif self.groq.status not in ('ready','configured'):notice='Groq '+self.groq.status.replace('_',' ')+'. Source headlines are available; try again later or check your connection in Settings.'
@@ -184,8 +185,14 @@ class Engine:
         if stories and snapshot==self.store.meta('revision'):
             ident=self.store.put_query(exact_key,q,scope,result,CACHE_SECONDS,snapshot)
             if q:await asyncio.to_thread(self.vector.put,ident,q)
-        return self.decorate(result,'fresh')
-    def decorate(self,result,cache):
+        return self.decorate(result,'fresh',retry_failed=bool(request.get("refresh")))
+    def decorate(self,result,cache,retry_failed=False):
+        self.summaries.enqueue(result['stories'],retry_failed=retry_failed)
+        updates=self.summaries.updates([s['id'] for s in result['stories']])
+        current={s['id']:s for s in updates['stories']}
+        result['stories']=[current.get(s['id'],s) for s in result['stories']]
+        result['summary_pending']=updates['pending']
+        result['summary_failed']=updates['failed']
         saved={r['id'] for r in self.store.rows('SELECT id FROM saved')}
         for s in result['stories']:s['saved']=s['id'] in saved
         result['cache']=cache;result['stale']=time.time()-result['source_updated_at']>REFRESH_SECONDS*2

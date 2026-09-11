@@ -29,8 +29,11 @@ async def lifespan(app):
             await asyncio.to_thread(vector.prune,{r['id'] for r in store.rows('SELECT id FROM query_cache WHERE expires>? AND revision=?',(time.time(),store.meta('revision')))})
             await asyncio.sleep(REFRESH_SECONDS)
     task=asyncio.create_task(maintain())
+    summary_task=asyncio.create_task(engine.summaries.run())
     yield
     task.cancel()
+    summary_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):await summary_task
     with contextlib.suppress(asyncio.CancelledError):await task
     if vector.client:vector.client.close()
 app=FastAPI(title='World Brief',lifespan=lifespan)
@@ -148,3 +151,10 @@ def save(ident:str):
 def unsave(ident:str):
     with store.db() as db:db.execute('DELETE FROM saved WHERE id=?',(ident,))
     return {'saved':False}
+
+class BriefingUpdates(BaseModel):
+    ids:list[str]=Field(max_length=100)
+
+@app.post('/api/briefing-updates')
+def briefing_updates(body:BriefingUpdates):
+    return engine.summaries.updates(body.ids)

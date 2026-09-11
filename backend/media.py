@@ -32,11 +32,12 @@ def domain_of(url):
 def publisher_id(url):return digest(domain_of(url))[:24]
 def country_name(code):return NAMES.get(code,code)
 
-def feed_urls(country,query=''):
+def feed_urls(country,query='',topic='All'):
     hl=EDITIONS.get(country,'en-US');edition=country if country in EDITIONS else 'US'
     params={'hl':hl,'gl':edition,'ceid':f'{edition}:en'}
     if query:
-        return [('All',True,'https://news.google.com/rss/search?'+urlencode({**params,'q':f'{country_name(country)} {query} when:7d'}))]
+        topic_term='' if topic=='All' else topic
+        return [(topic,True,'https://news.google.com/rss/search?'+urlencode({**params,'q':f'{country_name(country)} {query} {topic_term} when:7d'}))]
     if country not in EDITIONS:
         return [(t,True,'https://news.google.com/rss/search?'+urlencode({**params,'q':f'{country_name(country)} {suffix} when:7d'})) for t,suffix in [('World','news'),('Business','business economy'),('Technology','technology'),('Science','science'),('Climate','climate'),('World','politics')]]
     result=[('World',True,'https://news.google.com/rss?'+urlencode(params)),('World',True,'https://news.google.com/rss/search?'+urlencode({**params,'q':f'{country_name(country)} when:1d'}))]
@@ -70,16 +71,16 @@ def parse_news(content,country,topic,domestic):
         publishers[pid]={'id':pid,'name':name,'domain':domain,'url':'https://'+domain,'major':int(domain in MAJOR_DOMAINS)}
     return articles,publishers
 
-async def collect_country(store,country,query=''):
+async def collect_country(store,country,query='',topic='All'):
     from .catalog import import_catalog
     from .publisher_feeds import collect_publishers
     import_catalog(store,country)
-    feeds=feed_urls(country,query)
+    feeds=feed_urls(country,query,topic)
     # Include user-added websites even if absent from today's edition.
     custom=store.rows('SELECT domain FROM media WHERE country=? AND custom=1 AND selected=1',(country,))
     for i in range(0,len(custom),8):
         domains=' OR '.join('site:'+x['domain'] for x in custom[i:i+8])
-        feeds.extend(feed_urls(country,'('+domains+') '+query))
+        feeds.extend(feed_urls(country,'('+domains+') '+query,topic))
     semaphore=asyncio.Semaphore(4)
     async with httpx.AsyncClient(timeout=12,follow_redirects=True,trust_env=False,headers={'User-Agent':'WorldBrief/2.0 personal news reader'}) as client:
         async def one(spec):

@@ -3,14 +3,14 @@ import re
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
-def short_summary(text, limit=60):
+def short_summary(text, limit=56):
     text = ' '.join(text.split())
     tokens = text.split()
     if len(tokens) <= limit:
         return text
     prefix = ' '.join(tokens[:limit])
     sentences = list(re.finditer(r'[.!?](?:[”"’])?(?:\s|$)', prefix))
-    if sentences and sentences[-1].end() >= len(prefix) // 2:
+    if sentences and len(prefix[:sentences[-1].end()].split()) >= 40:
         return prefix[:sentences[-1].end()].strip()
     return prefix.rstrip(' ,;:') + '…'
 
@@ -40,3 +40,9 @@ def publisher_image(item):
     parser=ImageParser();parser.feed(item.get('summary',''))
     candidates.extend(parser.urls)
     return next((url for candidate in candidates if (url:=safe_image_url(candidate))), '')
+
+
+def summary_is_usable(text, sources):
+    count=len(text.split())
+    evidence_words=sum(len(s.get("excerpt", "").split()) for s in sources)
+    return 40 <= count <= 56 or (5 <= count < 40 and evidence_words < 40)

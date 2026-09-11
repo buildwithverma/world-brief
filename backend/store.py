@@ -28,6 +28,7 @@ class Store:
                 CREATE INDEX IF NOT EXISTS idx_country_source ON country_articles(country,source_id);
                 CREATE TABLE IF NOT EXISTS source_catalog(country TEXT,id TEXT,metadata TEXT,PRIMARY KEY(country,id));
                 CREATE TABLE IF NOT EXISTS article_images(article_id TEXT PRIMARY KEY,url TEXT);
+                CREATE TABLE IF NOT EXISTS summary_jobs(id TEXT PRIMARY KEY,version TEXT,created REAL,next_attempt REAL,attempts INTEGER DEFAULT 0,status TEXT DEFAULT 'pending');
             ''')
             for f in FEEDS:
                 db.execute('INSERT INTO feeds(id,publisher,topic,region,url,status) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET publisher=excluded.publisher,topic=excluded.topic,region=excluded.region,url=excluded.url', (*f, 'pending'))

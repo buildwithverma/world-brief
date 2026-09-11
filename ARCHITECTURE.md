@@ -132,8 +132,32 @@ To change ranking or grouping, edit `backend/engine.py`. To extend publisher exc
 
 The Inshorts-inspired reading surface keeps the original React frontend and Python backend. Cards now show a headline, publisher/time, a brief of at most 60 words, source-coverage badge, bookmark and full-reporting link. Search and filters sit above the single-column feed. Mobile cards stack publisher images above text; desktop cards place them beside it. Missing or failed images collapse to text-only cards.
 
-`backend/shorts.py` enforces the summary word limit without an additional AI request, preferring complete sentences when shortening. Groq is prompted to use fewer words when evidence is thin and to avoid inventing context. Publisher excerpts are also shortened for cards; source excerpts remain accessible in the evidence drawer. Legacy saved stories receive a 60-word frontend display limit while retaining their saved detail.
+`backend/shorts.py` enforces the summary word limit without an additional AI request, preferring complete sentences when shortening. Groq is prompted to use fewer words when evidence is thin and to avoid inventing context. Publisher excerpts are also shortened for cards; source excerpts remain accessible in the evidence drawer. Legacy saved stories receive a 56-word frontend display limit while retaining their saved detail.
 
 Publisher RSS image metadata and embedded excerpt images are stored in `article_images` and included in story cache versions. Only HTTPS image URLs with public-looking domain names are accepted. Images load directly from publisher/CDN hosts with no referrer; this does not download or rehost them. No synthetic or unrelated stock images are used. Feed availability determines image coverage.
 
 The GitHub `main` branch and `pre-inshorts-redesign` tag preserve the earlier interface. The short-news work is isolated on `codex/short-news-feed`.
+
+## Automatic completion of summaries
+
+`backend/summary_queue.py` persists unfinished summary jobs in SQLite's `summary_jobs` table. The API can return a briefing promptly while a separate Python task completes remaining summaries in batches of three. Rate-limit responses defer the job instead of caching an unfinished card permanently. Pending jobs survive service restarts. Invalid output is retried up to three times; daily-budget and credential failures pause processing until they can be resolved.
+
+`POST /api/briefing-updates` returns current versions of the requested cards and pending/failed counts. The frontend polls every eight seconds while summaries are pending and updates cards and the open evidence panel without fetching the news again. Existing exact/semantic briefing caches also overlay repaired story summaries when read. Version checks prevent an older job from overwriting newly collected evidence. Bookmarked snapshots remain unchanged.
+
+The first response still has a bounded summary window, but that window no longer abandons the remainder. With free-tier limits, completing 50 summaries can take several minutes. Source headlines alone do not establish the details of a full article; generated briefs remain limited to supplied reporting.
+
+
+## Consistent images and 40–56-word summaries
+
+Cards retain a fixed media panel when imagery is absent or fails. Publisher photos use contain sizing to avoid cropping. Each story can carry multiple publisher image URLs; the frontend tries the next URL on error or when an image is too small to be useful. With no usable image, a neutral newspaper icon, publisher name and topic appear with an explicit image-unavailable label. This fallback is not a photograph of the event.
+
+Summary generation targets 40–56 words. Both initial generation and background retries validate length. When supplied excerpts contain enough material, an under-40-word result is rejected for retry. When the source contains only thin headline information, a shorter factual brief is allowed and labeled Limited source detail. The app does not invent details to reach a minimum. The cache configuration version changed so newly refreshed briefings use the new policy. Legacy saved snapshots remain unchanged.
+
+
+### Refresh and draft preservation
+
+Keyword discovery includes the requested topic in both the search and its cache key, so topic-filtered results retain their category. Explicit Refresh retries failed summary jobs without resetting rate-limit cooldowns. Expired story snapshots are excluded from processing and pending counts; freshly cached stories can be queued again. Job results are checked against the current evidence version and expiry before being saved.
+
+Media settings retain local selection edits across background source-library refreshes, including newly discovered outlets. Changing country resets that draft; applying the selection saves it. Source controls are disabled during save/add requests.
+
+Regression checks: run `.venv\Scripts\python.exe -m pytest tests -q` for Python and `node --experimental-strip-types --test tests/media-selection.test.mjs` for selection merging.
