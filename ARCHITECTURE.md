@@ -161,3 +161,21 @@ Keyword discovery includes the requested topic in both the search and its cache 
 Media settings retain local selection edits across background source-library refreshes, including newly discovered outlets. Changing country resets that draft; applying the selection saves it. Source controls are disabled during save/add requests.
 
 Regression checks: run `.venv\Scripts\python.exe -m pytest tests -q` for Python and `node --experimental-strip-types --test tests/media-selection.test.mjs` for selection merging.
+
+
+## Progressive search (September 2026)
+
+The web UI filters its loaded cards on every keystroke using BM25, then debounces API calls by 300 ms. It sends concurrent `phase=local` and `phase=expanded` requests to `/api/query`. Request generations and cancellation prevent stale responses from replacing a newer search; the expanded response cannot be overwritten by the local one.
+
+The local phase reads up to 1,400 recent eligible SQLite articles, applies country/outlet/time/topic filters, and returns a BM25 shortlist without network or inline Groq calls. BM25 uses whole Unicode words, k1=1.5 and b=0.75. The expanded phase fetches subject RSS (existing 20-minute subject cache applies), repeats retrieval, and reranks up to max(150, count*3) candidates using local MiniLM cosine similarity. Scores below 0.32 are excluded. This is a tunable heuristic, not a calibrated probability. Article vectors are cached by text hash in memory, capped at 4,000. Missing models fall back to BM25. Install the model with `scripts/setup_vectors.py` and restart the backend. Query Qdrant storage remains separate.
+
+Empty queries select newest story groups rather than the previous diversified ranking. Country changes reset topic/time filters and fetch the chosen country. Groq summaries run in the persistent background queue; no remote intent or summary request blocks progressive results. The legacy API path remains available without a phase field. Progressive results reuse story caches; they do not use the legacy final-answer vector cache.
+
+On first use without a saved country, `/api/location?timezone=...` maps the device timezone to a country using packaged tzdata. This is an approximate suggestion, not GPS or IP geolocation. Saved/manual country selections take precedence; unknown timezones show the country picker. No coordinates are requested or sent externally.
+
+
+### Location relevance and weekly backfill
+
+Progressive search removes generic query words and recognizes named country subdivisions using pycountry. A named subdivision must occur as a full phrase in the headline/excerpt, or match a configured city alias. Uttar Pradesh includes a bounded list of cities in `backend/retrieval.py`; this is not an exhaustive geographic database. This gate applies before the free local MiniLM embedding filter. The immediate browser matcher applies the same rule for Pradesh state names, using source evidence rather than generated summary text. Embedding similarity is heuristic and may omit relevant reports; location mentions alone do not establish complete topical relevance.
+
+For Last 24 hours / Today searches, retrieval checks the requested recent window first, then successive older windows until enough distinct relevant story groups are found or seven days are exhausted. Every window retains country, source selection and topic constraints. Explicit Yesterday and Past week windows are respected. Each tier is sorted newest first. The API reports `backfilled` and the UI explains inclusion of older news. Fewer than the requested count is expected when relevant selected-source coverage is insufficient; irrelevant stories are never deliberately added to meet the count.

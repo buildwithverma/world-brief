@@ -262,3 +262,98 @@ async def test_topic_search_keeps_requested_category(store,monkeypatch):
     engine.collect=collect
     result=await engine.query(request(query='satellite',topic='Technology',count=1))
     assert calls==['Technology'] and len(result['stories'])==1
+
+
+def test_bm25_whole_words_and_multi_term_relevance():
+    from backend.retrieval import bm25
+    articles=[{'id':'a','title':'AI investment expands','excerpt':'','published':1},
+              {'id':'b','title':'Railway investment expands','excerpt':'','published':2},
+              {'id':'c','title':'Rain expected today','excerpt':'','published':3}]
+    assert [a['id'] for a in bm25(articles,'AI')]==['a']
+    assert bm25(articles,'AI investment')[0]['id']=='a'
+    assert not bm25(articles,'unmatched')
+
+@pytest.mark.asyncio
+async def test_progressive_local_never_waits_for_network_or_groq(store,monkeypatch):
+    seed(store,3);engine=Engine(store,NoVector())
+    async def forbidden(*args,**kwargs):raise AssertionError('Network must not run in local phase')
+    engine.collect=forbidden;engine.groq.json=forbidden
+    result=await engine.query(request(query='satellite',phase='local',count=2))
+    assert len(result['stories'])==2 and result['retrieval']=='bm25'
+    with store.db() as db:db.execute('UPDATE media SET selected=0')
+    assert not (await engine.query(request(query='satellite',phase='local')))['stories']
+
+@pytest.mark.asyncio
+async def test_progressive_expanded_reranks_and_keeps_newest_default(store):
+    seed(store,3)
+    class RankingVector(NoVector):
+        def rerank(self,q,articles):return list(reversed(articles))[:1], 'bm25+embeddings'
+    engine=Engine(store,RankingVector());calls=[]
+    async def fetch(*args,**kwargs):calls.append(kwargs)
+    engine.collect=fetch
+    result=await engine.query(request(query='satellite',phase='expanded'))
+    assert calls and result['retrieval']=='bm25+embeddings' and len(result['stories'])==1
+    latest=await engine.query(request(phase='local'))
+    dates=[s['published_at'] for s in latest['stories']]
+    assert dates==sorted(dates,reverse=True)
+
+@pytest.mark.asyncio
+async def test_progressive_collection_failure_keeps_local_results(store):
+    seed(store,2);engine=Engine(store,NoVector())
+    async def unavailable(*args,**kwargs):raise OSError('offline')
+    engine.collect=unavailable
+    result=await engine.query(request(query='satellite',phase='expanded'))
+    assert len(result['stories'])==2 and 'stored articles' in result['notice']
+
+
+def test_timezone_country_suggestions():
+    from backend.location import country_for_timezone
+    assert country_for_timezone('Asia/Calcutta')=='IN'
+    assert country_for_timezone('America/New_York')=='US'
+    assert country_for_timezone('Europe/London')=='GB'
+    assert country_for_timezone('UTC') is None
+
+
+def test_embedding_reranker_removes_weak_matches_and_reuses_vectors():
+    import numpy as np
+    from backend.vector import VectorCache
+    class Model:
+        def __init__(self):self.calls=[]
+        def embed(self,texts):
+            self.calls.extend(texts)
+            return [np.array([1.,0.]) if 'AI' in text else np.array([0.,1.]) for text in texts]
+    vector=VectorCache();vector.model=Model()
+    articles=[{'id':'a','title':'AI research','excerpt':''},{'id':'b','title':'railway funding','excerpt':''}]
+    ranked,method=vector.rerank('AI',articles)
+    assert method=='bm25+embeddings' and [a['id'] for a in ranked]==['a']
+    vector.rerank('AI',articles)
+    assert vector.model.calls.count('AI research ')==1
+
+@pytest.mark.asyncio
+async def test_progressive_respects_country_and_topic(store):
+    seed(store,2);engine=Engine(store,NoVector())
+    assert not (await engine.query(request(country='GB',phase='local',query='satellite')))['stories']
+    assert not (await engine.query(request(topic='Business',phase='local',query='satellite')))['stories']
+
+
+def test_state_query_excludes_other_pradesh_and_admits_known_city():
+    from backend.retrieval import relevant_candidates
+    titles=['Uttar Pradesh announces new schools','Andhra Pradesh opens schools','Lucknow opens new schools','Madhya Pradesh news today']
+    articles=[dict(id=str(i),title=t,excerpt='',published=10-i) for i,t in enumerate(titles)]
+    assert {a['id'] for a in relevant_candidates(articles,'uttar pradesh news')}=={'0','2'}
+
+@pytest.mark.asyncio
+async def test_search_backfills_week_only_and_keeps_recent_first(store):
+    seed(store,4);now=time.time()
+    with store.db() as db:
+        for i,days in enumerate([0,2,6,8]):
+            db.execute('UPDATE articles SET published=? WHERE id=?',(now-days*86400-100,str(i)))
+    engine=Engine(store,NoVector())
+    result=await engine.query(request(query='satellite',phase='local',count=4))
+    assert len(result['stories'])==3 and result['backfilled']
+    dates=[s['published_at'] for s in result['stories']]
+    assert dates==sorted(dates,reverse=True) and min(dates)>now-7*86400
+    enough=await engine.query(request(query='satellite',phase='local',count=1))
+    assert not enough['backfilled'] and len(enough['stories'])==1
+    explicit=await engine.query(request(query='satellite',phase='local',period='yesterday'))
+    assert not explicit['backfilled']
