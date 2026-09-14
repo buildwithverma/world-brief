@@ -8,3 +8,4 @@ pycountry>=24,<27
 qdrant-client[fastembed]>=1.15,<2
 pytest>=8,<10
 pytest-asyncio>=1,<2
+psycopg[binary,pool]>=3.2,<4

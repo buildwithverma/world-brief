@@ -1,3 +1,5 @@
+> **Free hosted edition:** Deployment code is now available. See [DEPLOYMENT.md](DEPLOYMENT.md) for Supabase/pgvector, Render, Cloudflare Pages, GitHub Actions, and API-key setup. The local instructions below remain valid.
+
 # World Brief
 
 A local news assistant with an Apple-inspired interface. Choose your country, select outlets, ask for a briefing, and save stories. Groq interprets questions and summarizes indexed headlines. SQLite and embedded Qdrant cache results on your computer.
@@ -72,3 +74,10 @@ node node_modules\vinext\dist\cli.js build
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full Python data flow, modules, API, caching, source catalogue and limitations. India source metadata is bundled in backend/catalogs/india_news_sources_ranked.json. Existing media selections are preserved; use Select top 50 to apply the ranked India list. Publisher RSS adds excerpts and original article links where available.
 
 The article count defaults to 50. Change the Articles control in the briefing (1–100), or set NEWS_ARTICLE_COUNT=50 in .env and restart. The browser remembers an explicit count choice. A query requesting a specific number of stories can override that count for its answer.
+
+
+## Instant search
+
+Typing filters loaded cards immediately. After a 300 ms pause, local BM25 searches stored articles while a parallel request collects additional coverage and reranks a shortlist using local MiniLM embeddings. Results remain visible throughout; clearing the search restores newest-first news. Groq summaries update separately. Country changes reset to All topics / Last 24 hours and collect the new country's feed.
+
+A first-time country is suggested from your device timezone (approximate, editable). Your saved selection is retained. If embeddings are unavailable, run `.venv\Scripts\python.exe scripts\setup_vectors.py` and restart the app. BM25 continues working without embeddings or a Groq key.

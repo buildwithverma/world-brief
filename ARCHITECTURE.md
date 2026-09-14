@@ -1,3 +1,17 @@
+## Hosted implementation (September 2026)
+
+The free hosting implementation is documented in [DEPLOYMENT.md](DEPLOYMENT.md). Local mode described below remains available.
+
+`backend.postgres.create_store()` selects PostgreSQL when `DATABASE_URL` is configured, otherwise SQLite. `backend/postgres.py` translates the small set of SQLite-specific statements while keeping values bound as parameters. `migrations/001_postgres.sql` creates private application tables and pgvector columns. Hosted durable state is entirely in PostgreSQL, including saved snapshots and pending summary jobs.
+
+`backend/pgvector.py` loads the free local MiniLM model, caches 384-dimensional article embeddings in PostgreSQL by content hash/model, and uses exact cosine distance on the BM25 shortlist. Query embeddings are also supported by the legacy query-cache path; the interactive progressive-search path primarily reuses stored articles and article vectors. Nine-day expiry and a configurable article cap bound temporary storage; saved snapshots survive cleanup.
+
+`APP_ENV=production` enables owner-only Supabase access-token verification, exact frontend-origin checks and server-managed Groq credentials. No news database table is exposed directly to the browser. `web/static/main.tsx` adds sign-in around the existing UI; `web/vite.static.config.ts` produces static files for Pages. The local Vinext frontend remains available.
+
+GitHub CI tests both storage engines. The manual deployment workflow migrates, deploys the tested Python commit to a free Render service, waits for it, and uploads the website. Optional scheduled Actions jobs run `scripts/collect.py`, with bounded runtime and shared PostgreSQL locks. The repository default-branch schedule and cloud account setup require activation; no external deployment was performed by this implementation.
+
+---
+
 # World Brief architecture
 
 This document describes the implemented local application. The backend is entirely Python. The existing React/Vinext frontend and Apple-inspired visual design remain in place.
@@ -44,7 +58,7 @@ This document describes the implemented local application. The backend is entire
 8. Headlines are grouped using shared words, similarity, compatible numbers and a 36-hour event window. This is a heuristic, so separate events may occasionally group together or equivalent stories remain separate.
 9. Ranking favors country coverage, freshness, matching outlet count and source/topic diversity. India catalogue priority adds a small ranking bonus of up to four points; it does not override the country preference or establish truth.
 10. Up to the requested count of story groups are returned. Fewer stories are legitimate when the selected sources/time range contain fewer matches; the UI displays the requested and returned totals.
-11. Each story uses available publisher excerpts and original links. Stories with only indexed headlines remain explicitly labeled. Groq receives headlines and excerpts in batches of five and is asked for two to four informative sentences grounded in that material.
+11. Each story uses available publisher excerpts and original links. Stories with only indexed headlines remain explicitly labeled. Groq receives headlines and excerpts in batches of five and is asked for a brief of at most 60 words grounded in that material.
 12. Summaries must cite supplied source IDs. Invalid output, unavailable Groq, exhausted budget or the bounded 20-second summary window leaves the publisher excerpt/headline fallback visible. A 50-story briefing need not contain 50 AI summaries on the free tier.
 13. Results, source links, coverage counts and summaries are cached. The browser shows the answer and refreshes status.
 
@@ -73,6 +87,7 @@ For each story group, publishers are deduplicated by source identity. The app di
 | SQLite table | Contents |
 | --- | --- |
 | `articles` | URLs, titles, excerpts, publisher, timestamps and content hashes. |
+| `article_images` | Publisher-provided image URLs associated with articles. |
 | `media` | Per-country publisher identity, ordering and selection. |
 | `source_catalog` | Imported India metadata, including duplicate category entries. |
 | `country_articles` | Article-to-country/source links, topic and country-priority signal. |
@@ -126,3 +141,55 @@ Run `./start.ps1` in PowerShell from the project root and open http://127.0.0.1:
 Backend checks: `.venv/Scripts/python.exe -m pytest tests -q`. Frontend checks: `node web/node_modules/typescript/bin/tsc --noEmit --project web/tsconfig.json`, then run `node node_modules/vinext/dist/cli.js build` from `web/`.
 
 To change ranking or grouping, edit `backend/engine.py`. To extend publisher excerpts, add configured feeds in `backend/publisher_feeds.py` and test their date, excerpt and URL parsing. To support another ranked country catalogue, extend `backend/catalog.py`. The frontend consumes Python API responses and does not contain news ingestion, AI or cache logic.
+
+## Short-news feed update
+
+The Inshorts-inspired reading surface keeps the original React frontend and Python backend. Cards now show a headline, publisher/time, a brief of at most 60 words, source-coverage badge, bookmark and full-reporting link. Search and filters sit above the single-column feed. Mobile cards stack publisher images above text; desktop cards place them beside it. Missing or failed images collapse to text-only cards.
+
+`backend/shorts.py` enforces the summary word limit without an additional AI request, preferring complete sentences when shortening. Groq is prompted to use fewer words when evidence is thin and to avoid inventing context. Publisher excerpts are also shortened for cards; source excerpts remain accessible in the evidence drawer. Legacy saved stories receive a 56-word frontend display limit while retaining their saved detail.
+
+Publisher RSS image metadata and embedded excerpt images are stored in `article_images` and included in story cache versions. Only HTTPS image URLs with public-looking domain names are accepted. Images load directly from publisher/CDN hosts with no referrer; this does not download or rehost them. No synthetic or unrelated stock images are used. Feed availability determines image coverage.
+
+The GitHub `main` branch and `pre-inshorts-redesign` tag preserve the earlier interface. The short-news work is isolated on `codex/short-news-feed`.
+
+## Automatic completion of summaries
+
+`backend/summary_queue.py` persists unfinished summary jobs in SQLite's `summary_jobs` table. The API can return a briefing promptly while a separate Python task completes remaining summaries in batches of three. Rate-limit responses defer the job instead of caching an unfinished card permanently. Pending jobs survive service restarts. Invalid output is retried up to three times; daily-budget and credential failures pause processing until they can be resolved.
+
+`POST /api/briefing-updates` returns current versions of the requested cards and pending/failed counts. The frontend polls every eight seconds while summaries are pending and updates cards and the open evidence panel without fetching the news again. Existing exact/semantic briefing caches also overlay repaired story summaries when read. Version checks prevent an older job from overwriting newly collected evidence. Bookmarked snapshots remain unchanged.
+
+The first response still has a bounded summary window, but that window no longer abandons the remainder. With free-tier limits, completing 50 summaries can take several minutes. Source headlines alone do not establish the details of a full article; generated briefs remain limited to supplied reporting.
+
+
+## Consistent images and 40–56-word summaries
+
+Cards retain a fixed media panel when imagery is absent or fails. Publisher photos use contain sizing to avoid cropping. Each story can carry multiple publisher image URLs; the frontend tries the next URL on error or when an image is too small to be useful. With no usable image, a neutral newspaper icon, publisher name and topic appear with an explicit image-unavailable label. This fallback is not a photograph of the event.
+
+Summary generation targets 40–56 words. Both initial generation and background retries validate length. When supplied excerpts contain enough material, an under-40-word result is rejected for retry. When the source contains only thin headline information, a shorter factual brief is allowed and labeled Limited source detail. The app does not invent details to reach a minimum. The cache configuration version changed so newly refreshed briefings use the new policy. Legacy saved snapshots remain unchanged.
+
+
+### Refresh and draft preservation
+
+Keyword discovery includes the requested topic in both the search and its cache key, so topic-filtered results retain their category. Explicit Refresh retries failed summary jobs without resetting rate-limit cooldowns. Expired story snapshots are excluded from processing and pending counts; freshly cached stories can be queued again. Job results are checked against the current evidence version and expiry before being saved.
+
+Media settings retain local selection edits across background source-library refreshes, including newly discovered outlets. Changing country resets that draft; applying the selection saves it. Source controls are disabled during save/add requests.
+
+Regression checks: run `.venv\Scripts\python.exe -m pytest tests -q` for Python and `node --experimental-strip-types --test tests/media-selection.test.mjs` for selection merging.
+
+
+## Progressive search (September 2026)
+
+The web UI filters its loaded cards on every keystroke using BM25, then debounces API calls by 300 ms. It sends concurrent `phase=local` and `phase=expanded` requests to `/api/query`. Request generations and cancellation prevent stale responses from replacing a newer search; the expanded response cannot be overwritten by the local one.
+
+The local phase reads up to 1,400 recent eligible SQLite articles, applies country/outlet/time/topic filters, and returns a BM25 shortlist without network or inline Groq calls. BM25 uses whole Unicode words, k1=1.5 and b=0.75. The expanded phase fetches subject RSS (existing 20-minute subject cache applies), repeats retrieval, and reranks up to max(150, count*3) candidates using local MiniLM cosine similarity. Scores below 0.32 are excluded. This is a tunable heuristic, not a calibrated probability. Article vectors are cached by text hash in memory, capped at 4,000. Missing models fall back to BM25. Install the model with `scripts/setup_vectors.py` and restart the backend. Query Qdrant storage remains separate.
+
+Empty queries select newest story groups rather than the previous diversified ranking. Country changes reset topic/time filters and fetch the chosen country. Groq summaries run in the persistent background queue; no remote intent or summary request blocks progressive results. The legacy API path remains available without a phase field. Progressive results reuse story caches; they do not use the legacy final-answer vector cache.
+
+On first use without a saved country, `/api/location?timezone=...` maps the device timezone to a country using packaged tzdata. This is an approximate suggestion, not GPS or IP geolocation. Saved/manual country selections take precedence; unknown timezones show the country picker. No coordinates are requested or sent externally.
+
+
+### Location relevance and weekly backfill
+
+Progressive search removes generic query words and recognizes named country subdivisions using pycountry. A named subdivision must occur as a full phrase in the headline/excerpt, or match a configured city alias. Uttar Pradesh includes a bounded list of cities in `backend/retrieval.py`; this is not an exhaustive geographic database. This gate applies before the free local MiniLM embedding filter. The immediate browser matcher applies the same rule for Pradesh state names, using source evidence rather than generated summary text. Embedding similarity is heuristic and may omit relevant reports; location mentions alone do not establish complete topical relevance.
+
+For Last 24 hours / Today searches, retrieval checks the requested recent window first, then successive older windows until enough distinct relevant story groups are found or seven days are exhausted. Every window retains country, source selection and topic constraints. Explicit Yesterday and Past week windows are respected. Each tier is sorted newest first. The API reports `backfilled` and the UI explains inclusion of older news. Fewer than the requested count is expected when relevant selected-source coverage is insufficient; irrelevant stories are never deliberately added to meet the count.

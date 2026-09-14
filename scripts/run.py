@@ -8,6 +8,11 @@ import time
 from pathlib import Path
 
 root=Path(__file__).resolve().parent.parent
+# Always use the project's environment, even when invoked as `python scripts/run.py`.
+python=root/'.venv'/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+if not python.exists(): sys.exit('Project Python environment is missing. Follow the installation steps in README.md.')
+if Path(sys.executable).absolute()!=python.absolute():
+    sys.exit(subprocess.call([str(python),str(Path(__file__).resolve()),*sys.argv[1:]],cwd=root))
 node=shutil.which('node')
 if not node: sys.exit('Node.js 22 or later is required.')
 for port in (3000,8000):

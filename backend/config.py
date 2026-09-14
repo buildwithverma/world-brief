@@ -3,9 +3,19 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / '.env')
+HOSTED = os.getenv('APP_ENV', 'local') == 'production'
+if not HOSTED:
+    load_dotenv(ROOT / '.env')
+DATABASE_URL = os.getenv('DATABASE_URL', '')
+PUBLIC_ORIGIN = os.getenv('PUBLIC_ORIGIN', '').rstrip('/')
+SUPABASE_URL = os.getenv('SUPABASE_URL', '').rstrip('/')
+SUPABASE_KEY = os.getenv('SUPABASE_PUBLISHABLE_KEY', '')
+OWNER_USER_ID = os.getenv('OWNER_USER_ID', '')
+if HOSTED and not all((DATABASE_URL, PUBLIC_ORIGIN.startswith('https://'), SUPABASE_URL.startswith('https://'), SUPABASE_KEY, OWNER_USER_ID)):
+    raise RuntimeError('Hosted mode requires database, HTTPS frontend origin, Supabase Auth, and owner configuration.')
 DATA = ROOT / 'data'
 DATA.mkdir(exist_ok=True)
+MODEL_CACHE = Path(os.getenv('MODEL_CACHE_DIR', str(DATA / 'models')))
 GROQ_KEY = os.getenv('GROQ_API_KEY', '')
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'openai/gpt-oss-20b')
 FACT_KEY = os.getenv('GOOGLE_FACT_CHECK_API_KEY', '')
