@@ -181,7 +181,11 @@ async def test_background_rejects_foreign_sources(store,monkeypatch):
     seed(store,1);monkeypatch.setattr('backend.engine.credentials',lambda:('','model'))
     monkeypatch.setattr('backend.summary_queue.credentials',lambda:('test','model'))
     engine=Engine(store,NoVector());await engine.query(request(count=1))
-    async def bad(prompt,payload,tokens):return {'stories':[{'id':payload[0]['id'],'summary':'An unsupported claim that should never be displayed.','source_ids':['foreign']}]}
+    async def bad(prompt,payload,tokens):
+        # A completed API response sets this even when its cited sources are invalid.
+        # Do not inherit credentials/status from a developer's local .env file.
+        engine.groq.status='ready'
+        return {'stories':[{'id':payload[0]['id'],'summary':'An unsupported claim that should never be displayed.','source_ids':['foreign']}]}
     engine.groq.json=bad;await engine.summaries.process()
     assert store.rows('SELECT attempts FROM summary_jobs')[0]['attempts']==1
     assert json.loads(store.rows('SELECT data FROM story_cache')[0]['data'])['summary_kind']=='publisher_excerpt'
