@@ -6,13 +6,13 @@ from datetime import datetime, timezone
 import httpx
 from dotenv import dotenv_values
 
-from .config import ROOT, TOKEN_BUDGET
+from .config import ROOT, TOKEN_BUDGET, HOSTED
 
 
 def credentials():
     import os
 
-    values = dotenv_values(ROOT / ".env")
+    values = {} if HOSTED else dotenv_values(ROOT / ".env")
     key = values.get("GROQ_API_KEY") if "GROQ_API_KEY" in values else os.getenv("GROQ_API_KEY", "")
     key = (key or "").strip()
     model = (values.get("GROQ_MODEL") or os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")).strip()
@@ -47,6 +47,13 @@ class Groq:
         return self.status
 
     async def json(self, instruction, data, max_tokens=1600):
+        with self.store.lease("worldbrief:groq") as held:
+            if not held:
+                self.status = "busy"
+                return None
+            return await self._json_locked(instruction, data, max_tokens)
+
+    async def _json_locked(self, instruction, data, max_tokens=1600):
         key, model = credentials()
         if not key:
             self.status = "missing_key"
@@ -97,6 +104,16 @@ class Groq:
         if self._daily_tokens_used() + estimate > TOKEN_BUDGET:
             self.status = "daily_budget_reached"
             return False
+
+        if hasattr(self.store, "pool"):
+            # The database lease held by json() serializes reservations across processes.
+            reservations = json.loads(self.store.meta("groq:minute", "[]"))
+            reservations = [(stamp, tokens) for stamp, tokens in reservations if stamp > now - 60]
+            if sum(tokens for _stamp, tokens in reservations) + estimate > 7500:
+                self.status = "rate_limited"
+                return False
+            reservations.append((now, estimate))
+            self.store.set_meta("groq:minute", json.dumps(reservations))
 
         self.minute = [(stamp, tokens) for stamp, tokens in self.minute if stamp > now - 60]
         if sum(tokens for _stamp, tokens in self.minute) + estimate > 7500:
@@ -177,7 +194,7 @@ class Groq:
             db.execute(
                 """
                 INSERT INTO usage VALUES(?, ?)
-                ON CONFLICT(day) DO UPDATE SET tokens = tokens + excluded.tokens
+                ON CONFLICT(day) DO UPDATE SET tokens = usage.tokens + excluded.tokens
                 """,
                 (day, tokens),
             )

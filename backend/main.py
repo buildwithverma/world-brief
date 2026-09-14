@@ -15,11 +15,18 @@ from .config import DEFAULT_ARTICLE_COUNT, REFRESH_SECONDS, ROOT, TOKEN_BUDGET
 from .engine import Engine
 from .groq import credentials
 from .media import COUNTRIES, MAJOR_DOMAINS, NAMES, country_name, domain_of
-from .store import Store, digest
+from .store import digest
+from .postgres import create_store
+from .config import HOSTED, PUBLIC_ORIGIN
+from .auth import authorized
 from .vector import VectorCache
 
-store = Store()
-vector = VectorCache()
+store = create_store()
+if HOSTED or hasattr(store, "pool"):
+    from .pgvector import PostgresVectors
+    vector = PostgresVectors(store)
+else:
+    vector = VectorCache()
 engine = Engine(store, vector)
 
 ORIGINS = [
@@ -28,6 +35,10 @@ ORIGINS = [
     "http://127.0.0.1:8000",
     "http://localhost:8000",
 ]
+
+
+if HOSTED:
+    ORIGINS = [PUBLIC_ORIGIN]
 
 
 @asynccontextmanager
@@ -44,11 +55,17 @@ async def lifespan(app):
         await maintenance_task
     if vector.client:
         vector.client.close()
+    if hasattr(store, "close"):
+        store.close()
 
 
 async def maintain_sources():
     await asyncio.to_thread(vector.initialize)
     while True:
+        if HOSTED:
+            await asyncio.to_thread(store.purge)
+            await asyncio.sleep(REFRESH_SECONDS)
+            continue
         country = store.meta("country")
         if country in NAMES:
             try:
@@ -72,12 +89,24 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ORIGINS,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
 @app.middleware("http")
 async def local_only(request: Request, call_next):
+    if HOSTED:
+        from fastapi.responses import JSONResponse
+        origin = request.headers.get("origin")
+        if origin and origin not in ORIGINS:
+            return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
+        if request.url.path == "/healthz":
+            return await call_next(request)
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        if not await authorized(request.headers.get("authorization")):
+            return JSONResponse({"detail": "Sign in with the owner account."}, status_code=401)
+        return await call_next(request)
     origin = request.headers.get("origin")
     local_host = request.url.hostname in ("127.0.0.1", "localhost", "testserver")
     if (origin and origin not in ORIGINS) or not local_host:
@@ -85,6 +114,11 @@ async def local_only(request: Request, call_next):
 
         return JSONResponse({"detail": "Local app access only"}, status_code=403)
     return await call_next(request)
+
+
+@app.get("/healthz")
+def health():
+    return {"status": "ok"}
 
 
 def valid_country(code):
@@ -161,7 +195,8 @@ def status(country: str = ""):
         "groq": engine.groq.status if key else "missing_key",
         "groq_configured": bool(key),
         "groq_model": model,
-        "key_location": str(ROOT / ".env"),
+        "key_location": "Backend hosting environment: GROQ_API_KEY" if HOSTED else str(ROOT / ".env"),
+        "hosted": HOSTED,
         "semantic_cache": vector.status,
         "country": code or None,
         "country_name": country_name(code) if code else None,
@@ -175,6 +210,8 @@ def status(country: str = ""):
 
 @app.post("/api/settings/groq")
 async def save_groq(body: GroqSettings):
+    if HOSTED:
+        raise HTTPException(403, "Set GROQ_API_KEY in the backend hosting environment.")
     key = body.key.get_secret_value().strip()
     if len(key) < 15 or len(key) > 300 or any(character.isspace() for character in key):
         raise HTTPException(422, "Enter a complete Groq API key with no spaces.")

@@ -81,6 +81,11 @@ class SummaryQueue:
         }
 
     async def process(self):
+        with self.store.lease("worldbrief:summary-jobs") as held:
+            if held:
+                await self._process_locked()
+
+    async def _process_locked(self):
         if self.lock.locked() or not credentials()[0]:
             return
 

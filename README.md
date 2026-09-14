@@ -1,3 +1,5 @@
+> **Free hosted edition:** Deployment code is now available. See [DEPLOYMENT.md](DEPLOYMENT.md) for Supabase/pgvector, Render, Cloudflare Pages, GitHub Actions, and API-key setup. The local instructions below remain valid.
+
 # World Brief
 
 A local news assistant with an Apple-inspired interface. Choose your country, select outlets, ask for a briefing, and save stories. Groq interprets questions and summarizes indexed headlines. SQLite and embedded Qdrant cache results on your computer.

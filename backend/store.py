@@ -12,6 +12,10 @@ def digest(value):
 
 
 class Store:
+    @contextmanager
+    def lease(self, name):
+        yield True
+
     def __init__(self, path=None):
         self.path = str(path or DATA / "brief.sqlite3")
         with self.db() as db:
@@ -218,7 +222,7 @@ class Store:
             return 0
 
         image = db.execute("SELECT url FROM article_images WHERE article_id=?", (article["id"],)).fetchone()
-        if image and image[0] == article["image_url"]:
+        if image and image["url"] == article["image_url"]:
             return 0
 
         db.execute("INSERT OR REPLACE INTO article_images VALUES(?, ?)", (article["id"], article["image_url"]))
@@ -227,7 +231,7 @@ class Store:
     @staticmethod
     def _upsert_article_row(db, article):
         old = db.execute("SELECT content_hash FROM articles WHERE id=?", (article["id"],)).fetchone()
-        if old and old[0] == article["content_hash"]:
+        if old and old["content_hash"] == article["content_hash"]:
             return 0
 
         fields = [

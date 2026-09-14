@@ -182,6 +182,11 @@ class Engine:
         return digest("|".join(ids)), ids
 
     async def collect(self, country, force=False, query="", topic="All"):
+        with self.store.lease("worldbrief:collect:" + country) as held:
+            if held:
+                return await self._collect_locked(country, force, query, topic)
+
+    async def _collect_locked(self, country, force=False, query="", topic="All"):
         lock = self.fetch_locks.setdefault(country, asyncio.Lock())
         async with lock:
             last_attempt = float(self.store.meta("fetch_attempt:" + country, "0"))
@@ -291,6 +296,8 @@ class Engine:
                 if expanded and hasattr(self.vector, "rerank") and candidates:
                     try:
                         candidates, method = await asyncio.to_thread(self.vector.rerank, query_subject(query), candidates)
+                        if method == "bm25+embeddings_partial":
+                            warning = "Showing semantically checked matches. Some new articles are still being indexed; retry shortly."
                     except Exception:
                         warning = "Embedding ranking is unavailable; showing location-constrained BM25 matches."
                 # Never promote old coverage above a newer relevant day's reporting.

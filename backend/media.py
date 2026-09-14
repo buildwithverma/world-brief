@@ -359,7 +359,7 @@ def _link_country_articles(store, country, articles):
                 INSERT INTO country_articles VALUES(?, ?, ?, ?, ?)
                 ON CONFLICT(country, article_id) DO UPDATE SET
                     domestic = MAX(domestic, excluded.domestic),
-                    topic = CASE WHEN excluded.topic != 'World' THEN excluded.topic ELSE topic END
+                    topic = CASE WHEN excluded.topic != 'World' THEN excluded.topic ELSE country_articles.topic END
                 """,
                 (country, article["id"], article["source_id"], article["domestic"], article["topic"]),
             )

@@ -15,3 +15,8 @@ web/.wrangler/
 
 pytest-cache-files-*/
 web/*.tsbuildinfo
+
+web/dist-static/
+.env.*
+!.env.example
+!web/.env.production.example

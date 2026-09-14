@@ -1,3 +1,17 @@
+## Hosted implementation (September 2026)
+
+The free hosting implementation is documented in [DEPLOYMENT.md](DEPLOYMENT.md). Local mode described below remains available.
+
+`backend.postgres.create_store()` selects PostgreSQL when `DATABASE_URL` is configured, otherwise SQLite. `backend/postgres.py` translates the small set of SQLite-specific statements while keeping values bound as parameters. `migrations/001_postgres.sql` creates private application tables and pgvector columns. Hosted durable state is entirely in PostgreSQL, including saved snapshots and pending summary jobs.
+
+`backend/pgvector.py` loads the free local MiniLM model, caches 384-dimensional article embeddings in PostgreSQL by content hash/model, and uses exact cosine distance on the BM25 shortlist. Query embeddings are also supported by the legacy query-cache path; the interactive progressive-search path primarily reuses stored articles and article vectors. Nine-day expiry and a configurable article cap bound temporary storage; saved snapshots survive cleanup.
+
+`APP_ENV=production` enables owner-only Supabase access-token verification, exact frontend-origin checks and server-managed Groq credentials. No news database table is exposed directly to the browser. `web/static/main.tsx` adds sign-in around the existing UI; `web/vite.static.config.ts` produces static files for Pages. The local Vinext frontend remains available.
+
+GitHub CI tests both storage engines. The manual deployment workflow migrates, deploys the tested Python commit to a free Render service, waits for it, and uploads the website. Optional scheduled Actions jobs run `scripts/collect.py`, with bounded runtime and shared PostgreSQL locks. The repository default-branch schedule and cloud account setup require activation; no external deployment was performed by this implementation.
+
+---
+
 # World Brief architecture
 
 This document describes the implemented local application. The backend is entirely Python. The existing React/Vinext frontend and Apple-inspired visual design remain in place.

@@ -13,8 +13,11 @@ class NoVector:
     def search(self,q):return []
     def put(self,*args):pass
 
-@pytest.fixture
-def store(tmp_path):return Store(tmp_path/'test.sqlite3')
+@pytest.fixture(params=['sqlite', 'postgres'])
+def store(tmp_path, request):
+    if request.param == 'postgres':
+        return request.getfixturevalue('postgres_store')
+    return Store(tmp_path/'test.sqlite3')
 
 def request(**kwargs):
     return {'query':'','topic':'All','country':'US','period':'day','timezone':'UTC','refresh':False,'previous':None,**kwargs}
