@@ -13,7 +13,6 @@ jobs:
     if: vars.ENABLE_SCHEDULED_COLLECTION == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    environment: production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
