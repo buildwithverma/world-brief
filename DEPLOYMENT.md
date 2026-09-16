@@ -63,14 +63,14 @@ Publish `web/dist-static`. The build refuses missing API/Auth configuration. `VI
 
 First push and review these changes. GitHub requires workflow files on the repository default branch for manual dispatch and schedules. Merge the reviewed implementation or deliberately change the default branch before using those controls; this change has not done that automatically. Push-triggered CI can run on the feature branch.
 
-Create a GitHub environment named `production` and add these environment secrets:
+Open **Settings → Secrets and variables → Actions** and add these **repository secrets**. Do not use an environment named `production`: environment secrets on private repositories require a paid GitHub plan.
 
 - `DATABASE_URL`
 - `GROQ_API_KEY`
 - `RENDER_API_KEY` (used to request deployment and wait for it)
 - `CLOUDFLARE_API_TOKEN`
 
-Add these environment variables:
+Add these **repository variables** in the same Actions settings:
 
 - `RENDER_SERVICE_ID`
 - `CLOUDFLARE_ACCOUNT_ID`
@@ -80,9 +80,9 @@ Add these environment variables:
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 - `NEWS_COUNTRY`: initial country, e.g. `IN`; saved app preference takes precedence
 
-The **Deploy free hosting** workflow tests the selected commit, migrates the DB, deploys that backend commit, waits for Render to report it live, then publishes the static website. It refuses a Render service that is not on the free plan. The backend and frontend are separate deployments, not an atomic release.
+The **Deploy free hosting** workflow first validates required configuration, then tests the selected commit and builds the website before modifying cloud resources. It next migrates the DB, deploys that backend commit, waits for Render to report it live, and publishes the static website. It refuses a Render service that is not on the free plan. The backend and frontend are separate deployments, not an atomic release.
 
-The optional **Refresh temporary articles** workflow is disabled unless you set the **repository-level** variable `ENABLE_SCHEDULED_COLLECTION=true`. Enable it after the first successful deployment. Scheduled workflows only run from GitHub's default branch. Currently the app is on a feature branch; activating the schedule requires separately merging or changing the default branch. This implementation does neither automatically.
+The optional **Refresh temporary articles** workflow is disabled unless you set the **repository-level** variable `ENABLE_SCHEDULED_COLLECTION=true`. Enable it after the first successful deployment. Scheduled workflows only run from GitHub's default branch. The implementation is already on `main`; the schedule stays disabled until the repository variable is enabled.
 
 Review Actions usage before enabling the schedule. Each collection has a 12-minute job timeout and a 9-minute application timeout; these are ceilings, not expected billing or a guarantee of staying inside your free monthly allowance. The model and pip caches reduce subsequent setup work. Disable the repository variable to stop scheduled collection.
 
@@ -117,3 +117,5 @@ References: [Render free services](https://render.com/docs/free), [Supabase pric
 Local verification: 66 Python tests passed across SQLite, real PostgreSQL/pgvector, and hosted access controls; six frontend retrieval/selection tests passed. TypeScript, the original local frontend build, and the hosted static build passed. The Linux Docker image builds with the model bundled. Its production-mode HTTP smoke test passed under the resource cap: the health endpoint responded successfully and anonymous API access returned 401.
 
 A Docker embedding-only stress check at 512 MiB and 0.1 CPU processed 150 long inputs in 220 seconds, with peak process memory of 226.8 MiB. This supports moving routine embedding to Actions; it is not a production load test or a guarantee of hosted response time. Actual account sign-in and provider deployment still need end-to-end verification after configuration.
+
+Local deployment notes: the ignored `.env` may contain `DEPLOY_DATABASE_URL` for administrative checks. This deliberately does not switch the local app away from SQLite. Hosting and GitHub must use the name `DATABASE_URL`, with the IPv4 pooler connection copied from Supabase Connect.
