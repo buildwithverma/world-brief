@@ -1,6 +1,13 @@
 # Free hosting setup
 
-The implementation is prepared locally. No hosting account has been provisioned and nothing has been published by this change.
+The production deployment is live:
+
+- Website: `https://world-brief-12e.pages.dev`
+- API: `https://world-brief-api.onrender.com`
+- Database: Supabase PostgreSQL with pgvector in Mumbai
+- Collection: GitHub Actions every two hours
+
+The site uses Cloudflare Pages Direct Upload and the API deploys from `main` on Render. The steps below document the current setup and the values needed to reproduce or maintain it.
 
 ## What runs where
 
@@ -26,13 +33,13 @@ No local SQLite data is uploaded automatically. The hosted edition fetches fresh
 
 ## 2. Create the backend
 
-Create a Render Blueprint from this private repository and the branch containing these changes. Use `render.yaml`; confirm **Free** is selected. Set:
+Create a Render Blueprint from this private repository's `main` branch. Use `render.yaml`; confirm **Free** is selected. Set:
 
 | Render environment setting | Value |
 | --- | --- |
 | `APP_ENV` | `production` |
 | `DATABASE_URL` | Supabase PostgreSQL connection string, with TLS |
-| `PUBLIC_ORIGIN` | Exact website origin, e.g. `https://world-brief.pages.dev` |
+| `PUBLIC_ORIGIN` | Exact website origin: `https://world-brief-12e.pages.dev` |
 | `SUPABASE_URL` | Your Supabase project URL |
 | `SUPABASE_PUBLISHABLE_KEY` | Publishable key |
 | `OWNER_USER_ID` | Your Supabase user's UUID |
@@ -61,7 +68,7 @@ Publish `web/dist-static`. The build refuses missing API/Auth configuration. `VI
 
 ## 4. Configure GitHub Actions
 
-First push and review these changes. GitHub requires workflow files on the repository default branch for manual dispatch and schedules. Merge the reviewed implementation or deliberately change the default branch before using those controls; this change has not done that automatically. Push-triggered CI can run on the feature branch.
+GitHub requires workflow files on the repository default branch for manual dispatch and schedules. The deployment workflows are on `main`.
 
 Open **Settings → Secrets and variables → Actions** and add these **repository secrets**. Do not use an environment named `production`: environment secrets on private repositories require a paid GitHub plan.
 
@@ -82,7 +89,7 @@ Add these **repository variables** in the same Actions settings:
 
 The **Deploy free hosting** workflow first validates required configuration, then tests the selected commit and builds the website before modifying cloud resources. It next migrates the DB, deploys that backend commit, waits for Render to report it live, and publishes the static website. It refuses a Render service that is not on the free plan. The backend and frontend are separate deployments, not an atomic release.
 
-The optional **Refresh temporary articles** workflow is disabled unless you set the **repository-level** variable `ENABLE_SCHEDULED_COLLECTION=true`. Enable it after the first successful deployment. Scheduled workflows only run from GitHub's default branch. The implementation is already on `main`; the schedule stays disabled until the repository variable is enabled.
+The **Refresh temporary articles** workflow is enabled with the repository-level variable `ENABLE_SCHEDULED_COLLECTION=true`. It runs from `main` every two hours and can also be started manually.
 
 Review Actions usage before enabling the schedule. Each collection has a 12-minute job timeout and a 9-minute application timeout; these are ceilings, not expected billing or a guarantee of staying inside your free monthly allowance. The model and pip caches reduce subsequent setup work. Disable the repository variable to stop scheduled collection.
 
