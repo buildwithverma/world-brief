@@ -13,7 +13,7 @@ The site uses Cloudflare Pages Direct Upload and the API deploys from `main` on 
 
 | Component | Target | Purpose |
 | --- | --- | --- |
-| React website | Cloudflare Pages Free | Static files; existing news UI plus owner sign-in |
+| React website | Cloudflare Pages Free | Public static news interface |
 | Python API | Render Free | News retrieval, BM25, MiniLM embeddings, summaries |
 | PostgreSQL + pgvector | Supabase Free | Articles, vectors, settings, saved snapshots, caches, summary jobs |
 | GitHub Actions | Private repository | Tests, manual deployment, optional bounded collection every two hours |
@@ -21,13 +21,13 @@ The site uses Cloudflare Pages Direct Upload and the API deploys from `main` on 
 
 The application components are open source; these hosting services are commercial services with free tiers. GitHub Actions runs finite jobs, not the permanent web server. Free quotas and availability can change. Render can sleep, so the first request may take longer. This version waits for the Python API; direct browser reads of Supabase news tables are deliberately not enabled. Supabase may pause inactive free projects. No paid resource is defined in the deployment files.
 
-## 1. Create the database and owner account
+## 1. Create the database
 
 1. Create a **free Supabase project**. Save its database password in your password manager.
-2. In Authentication, create your own email/password user and copy its user UUID. Disable public sign-ups for this private app.
+2. Supabase Auth values remain configured for compatibility with the hosted backend, but the public website does not require an account or sign-in.
 3. Copy the project URL and **publishable key**. Do not use a service-role key as the publishable key.
 4. Copy a PostgreSQL connection string from Connect. Use the IPv4-compatible pooler connection for GitHub/Render if direct IPv6 is unavailable. URL-encode special characters in the password and require TLS with `sslmode=require`.
-5. The database migration creates private `worldbrief` tables and the vector extension. Do not add `worldbrief` to Supabase's exposed API schemas. The browser only calls Supabase Auth; all news reads go through the owner-protected Python API.
+5. The database migration creates private `worldbrief` tables and the vector extension. Do not add `worldbrief` to Supabase's exposed API schemas. The browser calls the Python API; it does not read database tables directly.
 
 No local SQLite data is uploaded automatically. The hosted edition fetches fresh articles. Existing local saved stories stay on your computer.
 
@@ -42,7 +42,7 @@ Create a Render Blueprint from this private repository's `main` branch. Use `ren
 | `PUBLIC_ORIGIN` | Exact website origin: `https://world-brief-12e.pages.dev` |
 | `SUPABASE_URL` | Your Supabase project URL |
 | `SUPABASE_PUBLISHABLE_KEY` | Publishable key |
-| `OWNER_USER_ID` | Your Supabase user's UUID |
+| `OWNER_USER_ID` | Existing compatibility setting; the public website does not use it |
 | `GROQ_API_KEY` | Your existing Groq key |
 | `GROQ_DAILY_TOKEN_BUDGET` | `30000` initially |
 | `MAX_STORED_ARTICLES` | Optional; default `5000` |
