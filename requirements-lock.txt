@@ -9,6 +9,7 @@ fastapi==0.141.1
 fastembed==0.8.0
 feedparser-sgmllib==2.1.0
 feedparser==6.0.14
+trafilatura==2.2.0
 filelock==3.32.5
 flatbuffers==25.12.19
 fsspec==2026.7.0
