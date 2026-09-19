@@ -20,6 +20,11 @@ GROQ_KEY = os.getenv('GROQ_API_KEY', '')
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'openai/gpt-oss-20b')
 FACT_KEY = os.getenv('GOOGLE_FACT_CHECK_API_KEY', '')
 SEMANTIC = os.getenv('ENABLE_SEMANTIC_CACHE', 'true').lower() == 'true'
+# Render's free web instances do not have enough memory to safely host the
+# local embedding runtime alongside the API. GitHub Actions still prepares
+# article vectors; the live service uses fast BM25 unless this is deliberately
+# enabled on a larger instance.
+HOSTED_SEMANTIC = os.getenv('ENABLE_HOSTED_SEMANTIC', 'false').lower() == 'true'
 REFRESH_SECONDS = max(300, int(os.getenv('NEWS_REFRESH_MINUTES', '30')) * 60)
 CACHE_SECONDS = max(60, int(os.getenv('CACHE_MINUTES', '20')) * 60)
 TOKEN_BUDGET = int(os.getenv('GROQ_DAILY_TOKEN_BUDGET', '120000'))
