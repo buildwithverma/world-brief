@@ -21,15 +21,12 @@ async def test_auth_owner_and_invalid_tokens(monkeypatch):
     assert not await auth.authorized(None)
 
 
-def test_hosted_routes_require_owner_and_reject_key_writes(monkeypatch):
+def test_hosted_routes_are_public_and_reject_key_writes(monkeypatch):
     from backend import main
     monkeypatch.setattr(main,"HOSTED",True)
     monkeypatch.setattr(main,"ORIGINS",["https://brief.example.com"])
-    async def allowed(header):return header=="Bearer owner"
-    monkeypatch.setattr(main,"authorized",allowed)
     client=TestClient(main.app)
     assert client.get('/healthz').status_code==200
-    assert client.get('/api/preferences').status_code==401
-    assert client.get('/api/preferences',headers={"Authorization":"Bearer owner"}).status_code==200
-    assert client.get('/api/preferences',headers={"Authorization":"Bearer owner","Origin":"https://evil.example.com"}).status_code==403
-    assert client.post('/api/settings/groq',headers={"Authorization":"Bearer owner"},json={"key":"fake-key-for-test-only"}).status_code==403
+    assert client.get('/api/preferences').status_code==200
+    assert client.get('/api/preferences',headers={"Origin":"https://evil.example.com"}).status_code==403
+    assert client.post('/api/settings/groq',json={"key":"fake-key-for-test-only"}).status_code==403

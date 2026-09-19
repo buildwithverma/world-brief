@@ -18,7 +18,6 @@ from .media import COUNTRIES, MAJOR_DOMAINS, NAMES, country_name, domain_of
 from .store import digest
 from .postgres import create_store
 from .config import HOSTED, PUBLIC_ORIGIN
-from .auth import authorized
 from .vector import VectorCache
 
 store = create_store()
@@ -104,8 +103,6 @@ async def local_only(request: Request, call_next):
             return await call_next(request)
         if request.method == "OPTIONS":
             return await call_next(request)
-        if not await authorized(request.headers.get("authorization")):
-            return JSONResponse({"detail": "Sign in with the owner account."}, status_code=401)
         return await call_next(request)
     origin = request.headers.get("origin")
     local_host = request.url.hostname in ("127.0.0.1", "localhost", "testserver")
