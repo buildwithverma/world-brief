@@ -6,7 +6,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from .config import CACHE_SECONDS, DEFAULT_ARTICLE_COUNT, REFRESH_SECONDS
+from .config import CACHE_SECONDS, DEFAULT_ARTICLE_COUNT, HOSTED, REFRESH_SECONDS
 from .groq import Groq, credentials
 from .media import country_name, collect_country
 from .shorts import short_summary, summary_is_usable
@@ -253,12 +253,23 @@ class Engine:
         from .retrieval import relevant_candidates, query_subject, region_terms
         country = request["country"]
         query = request.get("query", "").strip()
-        import_catalog(self.store, country)
         filters = {key: request[key] for key in ("topic", "country", "period", "timezone")}
         filters["count"] = request.get("count", DEFAULT_ARTICLE_COUNT)
         scope = fallback_intent(query, filters)
         # UI filters stay authoritative while typing; no remote intent call blocks search.
         scope["topic"] = filters["topic"]
+        # Render Free has a very small memory allowance. The landing edition is
+        # deliberately a direct view of cached articles: it avoids importing
+        # source catalog metadata, clustering, and per-story cache writes on a
+        # public request. Search keeps the full retrieval workflow below.
+        if HOSTED and request["phase"] == "expanded" and not query:
+            start, end = resolve_window(scope)
+            articles = self._candidate_articles(country, start, end, {**scope, "terms": []})
+            stories = [self._hosted_story(country, article) for article in articles[:scope["count"]]]
+            result = self._result("", scope, country, articles, stories, self.selected_signature(country)[1])
+            result.update(retrieval="newest", phase="expanded", notice=result.get("notice"), backfilled=False, search_window_days=None)
+            return result
+        import_catalog(self.store, country)
         regions = region_terms(query, country)
         if regions:
             # Preserve multiword places in the external search instead of OR-like token matches.
@@ -319,6 +330,10 @@ class Engine:
         result = self._result(query, scope, country, articles, stories, ids)
         result.update(retrieval=method, phase=request["phase"], notice=warning, backfilled=backfilled, search_window_days=7 if backfilled else None)
         return self.decorate(result, "fresh" if expanded else "local", retry_failed=bool(request.get("refresh")))
+
+    def _hosted_story(self, country, article):
+        source = {"id": article["id"], "url": article["url"], "publisher": article["publisher"], "domain": article["domain"], "major": bool(article["major"]), "title": article["title"], "excerpt": article["excerpt"], "link_kind": "news_index" if "news.google.com/" in article["url"] else "original", "published_at": article["published"]}
+        return {"id": digest(country + "|hosted|" + article["id"]), "title": article["title"], "image_url": article.get("image_url") or None, "image_urls": [article["image_url"]] if article.get("image_url") else [], "summary": short_summary(article["excerpt"]) or "Open the reporting for details.", "summary_kind": "publisher_excerpt" if article["excerpt"] else "headline", "topic": article["topic"], "country": country, "country_name": country_name(country), "local_priority": bool(article["domestic"]), "published_at": article["published"], "sources": [source], "coverage_count": 1, "verification": coverage([article]), "saved": False}
 
     def _exact_cache_key(self, query_text, key_scope, request, source_signature):
         payload = {
