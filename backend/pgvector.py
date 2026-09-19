@@ -54,22 +54,28 @@ class PostgresVectors(VectorCache):
         ids = [a["id"] for a in articles]
         existing = {r["article_id"]: r for r in self.store.rows(
             "SELECT article_id, content_hash, model FROM article_vectors WHERE article_id=ANY(?)", (ids,))}
+        missing = []
+        for article in articles:
+            text = article["title"] + " " + article.get("excerpt", "")[:1600]
+            content_hash = digest(text)
+            row = existing.get(article["id"], {})
+            if row.get("content_hash") != content_hash or row.get("model") != MODEL:
+                missing.append((article["id"], content_hash, text))
         with self.lock:
-            for article in articles:
-                text = article["title"] + " " + article.get("excerpt", "")[:1600]
-                content_hash = digest(text)
-                row = existing.get(article["id"], {})
-                if row.get("content_hash") == content_hash and row.get("model") == MODEL:
-                    continue
+            # A single inference and transaction per small batch is much faster
+            # than opening a database transaction for every article.
+            for start in range(0, len(missing), 25):
                 if deadline is not None and time.monotonic() >= deadline:
                     return False
-                vector = literal(self._embed(text))
+                batch = missing[start:start + 25]
+                vectors = self.model.embed([item[2] for item in batch])
                 with self.store.db() as db:
-                    db.execute("""INSERT INTO article_vectors
-                        SELECT id, ?, ?, ?::vector FROM articles WHERE id=?
-                        ON CONFLICT(article_id) DO UPDATE SET content_hash=excluded.content_hash,
-                        model=excluded.model, embedding=excluded.embedding""",
-                        (content_hash, MODEL, vector, article["id"]))
+                    for (article_id, content_hash, _text), vector in zip(batch, vectors):
+                        db.execute("""INSERT INTO article_vectors
+                            SELECT id, ?, ?, ?::vector FROM articles WHERE id=?
+                            ON CONFLICT(article_id) DO UPDATE SET content_hash=excluded.content_hash,
+                            model=excluded.model, embedding=excluded.embedding""",
+                            (content_hash, MODEL, literal(vector), article_id))
         return True
 
     def rerank(self, query, articles):
