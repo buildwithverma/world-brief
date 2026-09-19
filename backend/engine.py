@@ -396,6 +396,10 @@ class Engine:
         return None
 
     def _candidate_articles(self, country, start, end, scope):
+        # The landing page only needs a modest recent pool to form its requested
+        # stories. Avoid clustering every retained article on a constrained
+        # hosted instance; searches retain the larger shortlist for recall.
+        limit = 1400 if scope.get("terms") else max(250, scope.get("count", DEFAULT_ARTICLE_COUNT) * 5)
         articles = self.store.rows(
             """
             SELECT a.*, c.domestic, c.topic AS country_topic, m.id AS source_id, m.major, m.domain
@@ -404,9 +408,9 @@ class Engine:
             JOIN media m ON m.id = c.source_id AND m.country = c.country
             WHERE c.country = ? AND m.selected = 1 AND a.published >= ? AND a.published <= ?
             ORDER BY a.published DESC
-            LIMIT 1400
+            LIMIT ?
             """,
-            (country, start, end),
+            (country, start, end, limit),
         )
         images = {
             row["article_id"]: row["url"]
