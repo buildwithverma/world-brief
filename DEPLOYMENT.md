@@ -96,7 +96,7 @@ Review Actions usage before enabling the schedule. Each collection has a 12-minu
 ## Storage and search
 
 - Country and publisher filters constrain candidates first. Python BM25 selects a shortlist; pgvector exact cosine similarity ranks its MiniLM embeddings. Existing geographic checks and seven-day backfill remain.
-- The scheduled worker prepares up to 500 article embeddings per run. Hosted searches spend about three seconds preparing missing vectors per date window, then show only checked matches and an indexing notice if work remains. Existing vectors are reused; the per-window budget cannot interrupt an embedding already running.
+- The scheduled worker prepares up to 100 article embeddings per run. Hosted searches spend about three seconds preparing missing vectors per date window, then show only checked matches and an indexing notice if work remains. Existing vectors are reused; the per-window budget cannot interrupt an embedding already running.
 - Embeddings have 384 dimensions and a model ID plus content hash. Changing article text regenerates its vector. Models with another dimension require a schema change.
 - Temporary articles expire nine days after publication, with an additional newest-5000 cap by default. Cleanup removes associated images, country links and vectors. This cap may shorten available history in busy countries.
 - Expired query and story caches are deleted. Saved stories are independent snapshots and survive article cleanup. Settings and source catalogs also persist.
