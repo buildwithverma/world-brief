@@ -239,6 +239,7 @@ def _clean_google_title(raw_title, publisher):
 
 async def collect_country(store, country, query="", topic="All"):
     from .catalog import import_catalog
+    from .article_content import enrich_articles
     from .publisher_feeds import collect_publishers
 
     import_catalog(store, country)
@@ -252,6 +253,7 @@ async def collect_country(store, country, query="", topic="All"):
     for article in direct_articles:
         articles[article["id"]] = article
 
+    enriched = await enrich_articles(list(articles.values()))
     _upsert_publishers(store, country, publishers, articles.values())
     store.upsert_articles(list(articles.values()))
     changed = _link_country_articles(store, country, articles.values())
@@ -267,6 +269,7 @@ async def collect_country(store, country, query="", topic="All"):
         "outlets": len(publishers),
         "available": available,
         "total": len(feeds),
+        "enriched": enriched,
     }
 
 
