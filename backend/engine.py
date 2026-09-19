@@ -396,10 +396,10 @@ class Engine:
         return None
 
     def _candidate_articles(self, country, start, end, scope):
-        # The landing page only needs a modest recent pool to form its requested
-        # stories. Avoid clustering every retained article on a constrained
-        # hosted instance; searches retain the larger shortlist for recall.
-        limit = 1400 if scope.get("terms") else max(250, scope.get("count", DEFAULT_ARTICLE_COUNT) * 5)
+        # The landing page only needs a small recent pool to form its requested
+        # stories. Keep memory work bounded on the free hosted instance;
+        # searches retain the larger shortlist for recall.
+        limit = 1400 if scope.get("terms") else max(120, scope.get("count", DEFAULT_ARTICLE_COUNT) * 2)
         articles = self.store.rows(
             """
             SELECT a.*, c.domestic, c.topic AS country_topic, m.id AS source_id, m.major, m.domain
@@ -412,18 +412,19 @@ class Engine:
             """,
             (country, start, end, limit),
         )
-        images = {
-            row["article_id"]: row["url"]
-            for row in self.store.rows(
-                """
-                SELECT i.*
-                FROM article_images i
-                JOIN country_articles c ON c.article_id = i.article_id
-                WHERE c.country = ?
-                """,
-                (country,),
-            )
-        }
+        # Fetch artwork only for the current candidate set. Loading every image
+        # retained for a country made the landing request grow without bound.
+        images = {}
+        article_ids = [article["id"] for article in articles]
+        if article_ids:
+            placeholders = ",".join("?" for _ in article_ids)
+            images = {
+                row["article_id"]: row["url"]
+                for row in self.store.rows(
+                    f"SELECT article_id, url FROM article_images WHERE article_id IN ({placeholders})",
+                    tuple(article_ids),
+                )
+            }
 
         for article in articles:
             article["topic"] = article["country_topic"]
