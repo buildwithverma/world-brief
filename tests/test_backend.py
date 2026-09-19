@@ -305,6 +305,18 @@ async def test_progressive_expanded_reranks_and_keeps_newest_default(store):
     assert dates==sorted(dates,reverse=True)
 
 @pytest.mark.asyncio
+async def test_progressive_landing_feed_uses_stored_articles_before_collecting(store):
+    seed(store, 3)
+    engine = Engine(store, NoVector())
+    calls = []
+    async def collect(*args, **kwargs):
+        calls.append((args, kwargs))
+    engine.collect = collect
+    result = await engine.query(request(phase='expanded', count=2))
+    assert len(result['stories']) == 2
+    assert not calls
+
+@pytest.mark.asyncio
 async def test_progressive_collection_failure_keeps_local_results(store):
     seed(store,2);engine=Engine(store,NoVector())
     async def unavailable(*args,**kwargs):raise OSError('offline')

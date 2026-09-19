@@ -270,7 +270,12 @@ class Engine:
                 async with asyncio.timeout(35):
                     if query:
                         await self._collect_for_subject_search(country, scope)
-                    else:
+                    elif request.get("refresh") or not self.store.rows(
+                        "SELECT 1 FROM country_articles WHERE country=? LIMIT 1", (country,)
+                    ):
+                        # The public landing feed is served from the scheduled
+                        # collector's cache. Only collect here for a manual
+                        # refresh or a country that has no stored coverage.
                         await self.collect(country, force=bool(request.get("refresh")))
             except Exception:
                 warning = "Fresh coverage is unavailable; showing matching stored articles."

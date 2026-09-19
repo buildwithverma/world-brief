@@ -17,7 +17,7 @@ from .groq import credentials
 from .media import COUNTRIES, MAJOR_DOMAINS, NAMES, country_name, domain_of
 from .store import digest
 from .postgres import create_store
-from .config import HOSTED, PUBLIC_ORIGIN
+from .config import HOSTED, HOSTED_SEMANTIC, PUBLIC_ORIGIN
 from .vector import VectorCache
 
 store = create_store()
@@ -59,7 +59,11 @@ async def lifespan(app):
 
 
 async def maintain_sources():
-    await asyncio.to_thread(vector.initialize)
+    # The scheduled GitHub worker can build vectors without competing with
+    # public requests. Loading fastembed on Render's free instance repeatedly
+    # exceeds its memory allowance and causes the process to restart.
+    if not HOSTED or HOSTED_SEMANTIC:
+        await asyncio.to_thread(vector.initialize)
     while True:
         if HOSTED:
             await asyncio.to_thread(store.purge)
