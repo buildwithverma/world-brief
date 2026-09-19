@@ -31,3 +31,4 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GROQ_DAILY_TOKEN_BUDGET: '30000'
           NEWS_COUNTRY: ${{ vars.NEWS_COUNTRY || 'IN' }}
+          SCHEDULED_VECTOR_LIMIT: '100'
