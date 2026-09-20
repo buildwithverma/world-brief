@@ -1,6 +1,7 @@
 let accessTokenProvider: (()=>Promise<string>)|null=null;
 export function setAccessTokenProvider(provider:()=>Promise<string>){accessTokenProvider=provider}
 const apiBase=(import.meta.env.VITE_API_URL||" ").trim().replace(/\/$/, "");
+let wakeRequest:Promise<void>|null=null;
 export type Country={code:string;name:string};
 export type Outlet={id:string;name:string;domain:string;url:string;rank:number;selected:number;major:number;custom:number;catalog?:{priority_score:number;priority_tier:string;as_of:string;supported:boolean;entries:{name:string;category:string;primary_language?:string;language?:string;region?:string;focus?:string;format?:string;type?:string}[]}|null};
 export type Media={country:string;country_name:string;outlets:Outlet[];selected_count:number;initialized:boolean;ranking:string};
@@ -13,6 +14,21 @@ export async function api<T>(path:string,options:RequestInit={}):Promise<T>{
  try{const headers=new Headers(options.headers);if(accessTokenProvider){const token=await accessTokenProvider();if(token)headers.set("Authorization",`Bearer ${token}`)}const r=await fetch(`${apiBase}/api/${path}`,{...options,headers,signal});if(!r.ok){const body=await r.json().catch(()=>({})) as {detail?:unknown};throw new Error(typeof body.detail==='string'?body.detail:`Request failed (${r.status}). Try again.`)}return r.json()}
  catch(e){if(controller.signal.aborted)throw new Error('This took too long. Please retry; your cached stories are safe.');if(e instanceof TypeError)throw new Error(apiBase?'The news service is waking up or unavailable. Please retry shortly.':'Cannot reach the local news service. Run start.ps1 and keep its terminal open.');throw e}
  finally{clearTimeout(timeout)}
+}
+export function wakeApi():Promise<void>{
+ if(wakeRequest)return wakeRequest;
+ wakeRequest=(async()=>{
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort('timeout'),75000);
+  try{
+   const r=await fetch(`${apiBase}/healthz`,{headers:{Accept:'application/json'},signal:controller.signal});
+   if(!r.ok)throw new Error(`The news service is unavailable (${r.status}). Please retry shortly.`);
+  }catch(e){
+   if(controller.signal.aborted)throw new Error('The news service is taking longer than usual to wake up. Please try again.');
+   if(e instanceof TypeError)throw new Error(apiBase?'The news service is waking up or unavailable. Please retry shortly.':'Cannot reach the local news service. Run start.ps1 and keep its terminal open.');
+   throw e;
+  }finally{clearTimeout(timeout)}
+ })().catch(e=>{wakeRequest=null;throw e});
+ return wakeRequest;
 }
 export const post=(body:unknown):RequestInit=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 export function ago(seconds:number){if(!seconds)return 'Not yet updated';const m=Math.max(0,Math.floor((Date.now()/1000-seconds)/60));return m<1?'Just now':m<60?`${m}m ago`:m<1440?`${Math.floor(m/60)}h ago`:`${Math.floor(m/1440)}d ago`}
