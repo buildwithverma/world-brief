@@ -9,7 +9,7 @@ import {Skeleton} from '@/components/ui/skeleton';
 import {localMatches} from '@/lib/news-search';
 import {CountryPicker} from './country-picker';
 import {MediaSettings} from './media-settings';
-import {api,post,ago,type Story,type Brief,type Status,type Country} from '@/lib/brief-api';
+import {api,post,ago,wakeApi,type Story,type Brief,type Status,type Country} from '@/lib/brief-api';
 function shortText(value:string){const words=value.trim().split(/\s+/);return words.length<=56?value:words.slice(0,56).join(' ')+'…'}
 function StoryImage({urls,title,publisher,topic}:{urls:string[];title:string;publisher:string;topic:string}){
  const [index,setIndex]=useState(0),[loaded,setLoaded]=useState(false);
@@ -24,7 +24,7 @@ function Filter({label,value,options,onChange}:{label:string;value:string;option
 function Badge({story,onClick}:{story:Story;onClick:()=>void}){const v=story.verification;return <button className="evidence-badge outlet-coverage" onClick={onClick}><Newspaper size={13}/>{v.major_count} major {v.major_count===1?'outlet':'outlets'} · {v.total_count} total<ChevronRight size={12}/></button>}
 
 export default function Home(){
- const [tab,setTab]=useState('today'),[brief,setBrief]=useState<Brief|null>(null),[status,setStatus]=useState<Status|null>(null),[saved,setSaved]=useState<Story[]>([]),[loading,setLoading]=useState(false),[booting,setBooting]=useState(true),[error,setError]=useState('');
+ const [tab,setTab]=useState('today'),[brief,setBrief]=useState<Brief|null>(null),[status,setStatus]=useState<Status|null>(null),[saved,setSaved]=useState<Story[]>([]),[loading,setLoading]=useState(false),[booting,setBooting]=useState(true),[wakingService,setWakingService]=useState(false),[error,setError]=useState('');
  const [topic,setTopic]=useState('All'),[period,setPeriod]=useState('day'),[country,setCountry]=useState(''),[countries,setCountries]=useState<Country[]>([]),[onboarding,setOnboarding]=useState(false),[chosen,setChosen]=useState(''),[countryBusy,setCountryBusy]=useState(false);
  const [coverageFilter,setCoverageFilter]=useState('all'),[query,setQuery]=useState(''),[activeQuery,setActiveQuery]=useState(''),[selected,setSelected]=useState<Story|null>(null),[dark,setDark]=useState(false),[toast,setToast]=useState(''),[date,setDate]=useState('Your daily edition'),[mediaRevision,setMediaRevision]=useState(0);
  const [articleCount,setArticleCount]=useState(50);const countRef=useRef(50);
@@ -39,24 +39,29 @@ export default function Home(){
   const code=options.country||countryRef.current;if(!code){setOnboarding(true);return}
   controller.current?.abort();const ctrl=new AbortController();controller.current=ctrl;const id=++requestId.current;
   setLoading(true);setError('');setActiveQuery(q);
+  setWakingService(true);
+  try{await wakeApi()}catch(e){if(id===requestId.current&&!ctrl.signal.aborted){setError(e instanceof Error?e.message:'Cannot connect to the news service.');setLoading(false)}return}finally{if(id===requestId.current)setWakingService(false)}
+  if(id!==requestId.current||ctrl.signal.aborted)return;
   const filters={...filtersRef.current,...options};
   const scopeKey=JSON.stringify([code,filters.topic,filters.period]);
   if(poolScope.current!==scopeKey){poolScope.current=scopeKey;newsPool.current=[];setBrief(null)}
   const body={query:q,count:countRef.current,country:code,topic:filters.topic,period:filters.period,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,refresh:!!options.refresh,previous:null};
-  let expandedDone=false,localSuccess=false;
+  let localSuccess=false;
   function apply(result:Brief){
    newsPool.current=[...new Map([...newsPool.current,...result.stories].map(s=>[s.id,s])).values()].slice(-500);
    setBrief(result);intentRef.current=result.intent;setMediaRevision(r=>r+1);
   }
-  const local=api<Brief>('query',{...post({...body,phase:'local'}),signal:ctrl.signal}).then(result=>{
-   if(id===requestId.current&&!expandedDone){localSuccess=true;apply(result)}
-  }).catch(()=>{});
+  try{
+   const result=await api<Brief>('query',{...post({...body,phase:'local'}),signal:ctrl.signal});
+   if(id===requestId.current){localSuccess=true;apply(result)}
+  }catch{}
+  if(id!==requestId.current||ctrl.signal.aborted)return;
   try{
    const result=await api<Brief>('query',{...post({...body,phase:'expanded'}),signal:ctrl.signal});
    if(id!==requestId.current)return;
-   expandedDone=true;apply(result);refreshStatus(code);
-  }catch(e){await local;if(id===requestId.current&&!ctrl.signal.aborted)setError(localSuccess?'Could not refresh online coverage. Showing stored matches.':e instanceof Error?e.message:'Unable to load news.')}
-  finally{await local;if(id===requestId.current)setLoading(false)}
+   apply(result);refreshStatus(code);
+  }catch(e){if(id===requestId.current&&!ctrl.signal.aborted)setError(localSuccess?'Could not refresh online coverage. Showing stored matches.':e instanceof Error?e.message:'Unable to load news.')}
+  finally{if(id===requestId.current)setLoading(false)}
  }
  function typeSearch(value:string){
   setQuery(value);cancel();if(searchTimer.current)clearTimeout(searchTimer.current);
@@ -67,12 +72,12 @@ export default function Home(){
 
  async function boot(){
   setBooting(true);setError('');
-  try{const [cs,pref]=await Promise.all([api<Country[]>('countries'),api<{country:string|null;article_count:number}>('preferences')]);setCountries(cs);const savedCount=Number(localStorage.getItem('worldbrief-article-count'));const n=Number.isInteger(savedCount)&&savedCount>=1&&savedCount<=100?savedCount:pref.article_count;countRef.current=n;setArticleCount(n);if(pref.country){countryRef.current=pref.country;setCountry(pref.country);load('',{country:pref.country})}else {
+  try{setWakingService(true);await wakeApi();setWakingService(false);const [cs,pref]=await Promise.all([api<Country[]>('countries'),api<{country:string|null;article_count:number}>('preferences')]);setCountries(cs);const savedCount=Number(localStorage.getItem('worldbrief-article-count'));const n=Number.isInteger(savedCount)&&savedCount>=1&&savedCount<=100?savedCount:pref.article_count;countRef.current=n;setArticleCount(n);if(pref.country){countryRef.current=pref.country;setCountry(pref.country);load('',{country:pref.country})}else {
     const guessed=await api<{country:string|null}>('location?timezone='+encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)).catch(()=>({country:null}));
     if(guessed.country){setChosen(guessed.country);await changeCountry(guessed.country);setToast('Country suggested from your device timezone. Change it anytime.')}else setOnboarding(true);
    }refreshStatus(pref.country||'');api<Story[]>('saved').then(setSaved).catch(()=>{})}
   catch(e){setError(e instanceof Error?e.message:'Cannot connect to the assistant.')}
-  finally{setBooting(false)}
+  finally{setWakingService(false);setBooting(false)}
  }
  useEffect(()=>{
   const pref=localStorage.getItem('worldbrief-theme');const isDark=pref==='dark'||(!pref&&window.matchMedia('(prefers-color-scheme: dark)').matches);setDark(isDark);document.documentElement.classList.toggle('dark',isDark);setDate(new Intl.DateTimeFormat('en',{weekday:'long',month:'long',day:'numeric'}).format(new Date()));boot();
@@ -116,7 +121,7 @@ export default function Home(){
  {loading&&brief&&<p className="small-note" role="status">Showing stored matches. Fetching more coverage{activeQuery?' and refining relevance':''}…</p>}<div className="section-heading"><h2>{activeQuery&&tab!=='saved'?'Your results':tab==='saved'?'Reading list':'Top stories'} <span>{stories.length}</span></h2>{brief&&tab!=='saved'&&<span className="freshness"><span className={`status-dot ${brief.stale?'amber':''}`}/>{brief.stale?'Saved coverage':brief.cache==='fresh'?'Updated':'Cached answer'} · {ago(brief.source_updated_at)}</span>}</div>
  {activeQuery&&tab!=='saved'&&<div className="query-result-label"><Search size={16}/><span>{activeQuery}</span><button aria-label="Clear question" onClick={()=>typeSearch('')}><X size={16}/></button></div>}
  {error&&<div className="error-panel" role="alert"><p>{error}</p><button onClick={()=>countries.length?load(activeQuery):boot()}>Try again</button></div>}
- {(loading||booting)&&!brief&&tab!=='saved'?<div className="loading-stories" role="status"><div className="loading-copy"><Loader2 className="spin" size={17}/><span>{booting?'Connecting to your assistant…':`Preparing news for ${countryName}…`}</span>{loading&&<button className="text-link cancel-request" onClick={cancel}>Cancel</button>}</div><p className="small-note">You can send another question while this loads. It will replace the current request.</p>{[0,1,2].map(i=><div className="loading-card" key={i}><Skeleton className="h-4 w-24"/><Skeleton className="h-8 w-4/5"/><Skeleton className="h-4 w-full"/></div>)}</div>:stories.length?<div className="stories-grid">{stories.map(card)}</div>:<div className="empty-state"><Newspaper size={34}/><h3>{tab==='saved'?'A little reading for later.':!country?'Start with your country.':brief?.selected_sources===0?'No media outlets selected.':'No stories in this view yet.'}</h3><p>{tab==='saved'?'Tap the bookmark on any story to keep it here.':!country?'Choose a country to build your personal edition.':brief?.selected_sources===0?'Choose media outlets in Settings to receive stories. You can start with the ranked top 50.':'Try a wider time range or include more media outlets in Settings.'}</p>{tab!=='saved'&&<button className="primary-button" onClick={()=>{if(!country){setOnboarding(true);return}if(brief?.selected_sources===0){setTab('settings');return}setCoverageFilter('all');filtersRef.current={topic:'All',period:'week'};setTopic('All');setPeriod('week');load('',{topic:'All',period:'week',refresh:true})}}>{!country?'Choose country':brief?.selected_sources===0?'Choose media outlets':'Show this week’s news'}</button>}</div>}
+ {(loading||booting)&&!brief&&tab!=='saved'?<div className="loading-stories" role="status"><div className="loading-copy"><Loader2 className="spin" size={17}/><span>{wakingService?'Waking up the news service…':booting?'Connecting to your assistant…':`Preparing news for ${countryName}…`}</span>{loading&&<button className="text-link cancel-request" onClick={cancel}>Cancel</button>}</div><p className="small-note">The first visit may take a moment while the free news service starts.</p>{[0,1,2].map(i=><div className="loading-card" key={i}><Skeleton className="h-4 w-24"/><Skeleton className="h-8 w-4/5"/><Skeleton className="h-4 w-full"/></div>)}</div>:stories.length?<div className="stories-grid">{stories.map(card)}</div>:<div className="empty-state"><Newspaper size={34}/><h3>{tab==='saved'?'A little reading for later.':!country?'Start with your country.':brief?.selected_sources===0?'No media outlets selected.':'No stories in this view yet.'}</h3><p>{tab==='saved'?'Tap the bookmark on any story to keep it here.':!country?'Choose a country to build your personal edition.':brief?.selected_sources===0?'Choose media outlets in Settings to receive stories. You can start with the ranked top 50.':'Try a wider time range or include more media outlets in Settings.'}</p>{tab!=='saved'&&<button className="primary-button" onClick={()=>{if(!country){setOnboarding(true);return}if(brief?.selected_sources===0){setTab('settings');return}setCoverageFilter('all');filtersRef.current={topic:'All',period:'week'};setTopic('All');setPeriod('week');load('',{topic:'All',period:'week',refresh:true})}}>{!country?'Choose country':brief?.selected_sources===0?'Choose media outlets':'Show this week’s news'}</button>}</div>}
  {brief?.backfilled&&activeQuery&&<p className="small-note">Including relevant older coverage from the past week to fill your results. Newer stories appear first.</p>}{!!brief?.summary_pending&&tab!=='saved'&&<p className="settings-feedback" role="status">Updating {brief.summary_pending} remaining summaries. Cards update automatically; Groq’s free limits may require a few minutes.</p>}{!!brief?.summary_failed&&<p className="small-note">Some summaries could not be completed. Source reporting remains available.</p>}{brief&&tab!=='saved'&&<p className="small-note">Showing {brief.stories.length} of up to {brief.requested_count} requested stories before coverage filtering. Availability depends on your sources and time range.</p>}{brief?.notice&&tab!=='saved'&&<div className="reading-note"><KeyRound size={16}/><p>{brief.notice} <button onClick={()=>setTab('settings')}>Open Settings <ArrowUpRight size={12}/></button></p></div>}<p className="coverage-note">Newest stories appear first. Search ranks matching reporting by relevance. News is drawn from your selected outlets in an English-language country edition or country-focused search.</p></section>
 </div></>;
  return <><a href="#main" className="skip-link">Skip to news</a><Tabs value={tab} onValueChange={v=>{setTab(String(v));if(v==='saved')api<Story[]>('saved').then(setSaved).catch(()=>setToast('Could not load saved stories'))}} className="app-shell"><header className="topbar"><a href="/" className="brand"><span className="brand-symbol"><Globe2 size={23}/></span>World Brief<span className="brand-period">.</span></a><TabsList className="main-nav"><TabsTrigger value="today"><Newspaper size={16}/><span>Today</span></TabsTrigger><TabsTrigger value="explore"><Compass size={16}/><span>Explore</span></TabsTrigger><TabsTrigger value="saved"><Bookmark size={16}/><span>Saved</span></TabsTrigger><TabsTrigger value="settings"><Settings2 size={16}/><span>Settings</span></TabsTrigger></TabsList><div className="topbar-end"><span className="local-label"><MapPin size={13}/>{country?countryName:'Public edition'}</span><button className="icon-button" onClick={theme} aria-label={dark?'Use light appearance':'Use dark appearance'}>{dark?<Sun size={19}/>:<Moon size={19}/>}</button></div></header>
